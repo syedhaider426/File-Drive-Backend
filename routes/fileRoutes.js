@@ -10,11 +10,6 @@ const path = require("path");
 
 // fs - everything is asynchronous
 module.exports = function (app) {
-  /* This will do the first one only */
-  app.get("/", async (req, res) => {
-    res.send("Hello World");
-  });
-
   app.get("/delete", (req, res) => {
     /* Deletes a file */
     //console.log("Current working directory", process.cwd());
