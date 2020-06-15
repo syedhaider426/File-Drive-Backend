@@ -1,13 +1,24 @@
 const fs = require("fs");
 const formidable = require("formidable");
 
-module.exports = function (app, gfs) {
+module.exports = function (app, db, gfs) {
   app.get("/", (req, res) => {
     res.send(`
           <h2>With <code>"express"</code> npm package</h2>
           <form action="/api/upload" enctype="multipart/form-data" method="post">
             <div>Text field title: <input type="text" name="title" /></div>
             <div>File: <input type="file" name="someExpressFiles" multiple="multiple" /></div>
+            <input type="submit" value="Upload" />
+          </form>
+          
+        `);
+  });
+
+  app.get("/folder", (req, res) => {
+    res.send(`
+          <h2>With <code>"express"</code> npm package</h2>
+          <form action="/api/createFolder" method="post">
+            <div>Text field title: <input type="text" name="title" /></div>
             <input type="submit" value="Upload" />
           </form>
         `);
@@ -23,8 +34,30 @@ module.exports = function (app, gfs) {
       // streaming to gridfs
       var writestream = gfs.createWriteStream({
         filename: files.someExpressFiles.name,
+        metadata: "",
       });
       fs.createReadStream(files.someExpressFiles.path).pipe(writestream);
     });
+  });
+
+  app.post("/api/createFolder", async (req, res) => {
+    const collection = db.collection("folders");
+    console.log(req.body);
+    const folder = {
+      UserID: "",
+      ParentID: "",
+      Title: req.body.title,
+      Description: "",
+      CreatedOn: Date.now(),
+      LastUpdatedOn: Date.now(),
+      CreatedBy: Date.now(),
+      LastUpdatedBy: Date.now(),
+    };
+    try {
+      await collection.insertOne(folder);
+      res.status(200).json({ message: "Created folder" });
+    } catch (err) {
+      res.status(404).json({ message: "Unable to create folder" });
+    }
   });
 };
