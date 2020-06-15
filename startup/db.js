@@ -23,7 +23,7 @@ module.exports = function (app) {
       const bucket = new mongodb.GridFSBucket(db);
       const gfs = Grid(db, mongodb);
       console.log("Connected to DB");
-      require("../routes/gridFs")(app, db, bucket, gfs);
+      require("../routes/gridFs")(app, gfs);
       require("../startup/server")(app);
     } catch (err) {
       console.log("Unable to connect to DB");
