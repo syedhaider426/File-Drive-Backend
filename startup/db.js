@@ -1,57 +1,33 @@
-const keys = require("../config/keys");
-const mongoose = require("mongoose"); //ORM to interact with MongoDB
-const path = require("path");
-const crypto = require("crypto"); //use to generate file-names
-const mongoURI = keys.db;
-const multer = require("multer");
-const GridFsStorage = require("multer-gridfs-storage");
+const mongodb = require("mongodb");
+const MongoClient = mongodb.MongoClient;
 const Grid = require("gridfs-stream");
+//Connection URL
+const url = "mongodb://localhost:27017";
 
-Grid.mongo = mongoose.mongo;
-let gfs;
+//Database Name
+const dbName = "test";
+
+//Create a new MongoClient
+const client = new MongoClient(url, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+//Use connect method to connect to the server
 
 module.exports = function (app) {
   (async () => {
     try {
-      await mongoose.connect(mongoURI, {
-        useNewUrlParser: true,
-        useCreateIndex: true,
-        useUnifiedTopology: true,
-        useFindAndModify: false,
-      });
-      console.log("Connected to GridFS");
-      //Initialize stream
-      gfs = Grid(mongoose.connection.db, mongoose.mongo);
-
-      //this will create uploads.files, uploads.chunks)
-      gfs.collection("uploads");
-
-      // Create storage engine
-      const storage = new GridFsStorage({
-        url: mongoURI,
-        file: async (req, file) => {
-          return await crypto.randomBytes(16, (err, buf) => {
-            if (err) {
-              return err;
-            }
-            const filename =
-              buf.toString("hex") + path.extname(file.originalname);
-            const fileInfo = {
-              filename: filename,
-              bucketName: "uploads", //needs to match collection name
-            };
-            return fileInfo;
-          });
-        },
-      });
-
-      const upload = multer({ storage });
-
-      require("../routes/gridFs")(app, gfs, upload);
+      await client.connect();
+      const db = client.db(dbName);
+      const bucket = new mongodb.GridFSBucket(db);
+      const gfs = Grid(db, mongodb);
+      console.log("Connected to DB");
+      require("../routes/gridFs")(app, db, bucket, gfs);
       require("../startup/server")(app);
     } catch (err) {
-      console.error(err.message);
-      process.exit(1);
+      console.log("Unable to connect to DB");
+      process.exit(-1);
     }
   })();
 };
