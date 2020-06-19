@@ -19,12 +19,11 @@ module.exports = function (app) {
   (async () => {
     try {
       await client.connect();
+      console.log("Connected to DB");
       const db = client.db(dbName);
       global.db = db;
       const gfs = Grid(db, mongodb);
-      console.log("Connected to DB");
       require("../routes/gridFs")(app, db, gfs);
-      require("../startup/server")(app, db);
     } catch (err) {
       console.log("Unable to connect to DB");
       process.exit(-1);

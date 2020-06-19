@@ -1,19 +1,9 @@
 const fs = require("fs");
 const formidable = require("formidable");
-
+const {
+  checkAuthenticated,
+} = require("../middlewares/passport/passport-authenticate");
 module.exports = function (app, db, gfs) {
-  app.get("/", (req, res) => {
-    res.send(`
-          <h2>With <code>"express"</code> npm package</h2>
-          <form action="/api/upload" enctype="multipart/form-data" method="post">
-            <div>Text field title: <input type="text" name="title" /></div>
-            <div>File: <input type="file" name="someExpressFiles" multiple="multiple" /></div>
-            <input type="submit" value="Upload" />
-          </form>
-          
-        `);
-  });
-
   app.get("/folder", (req, res) => {
     res.send(`
           <h2>With <code>"express"</code> npm package</h2>
@@ -24,25 +14,8 @@ module.exports = function (app, db, gfs) {
         `);
   });
 
-  app.post("/api/upload", (req, res) => {
-    //Pass in an array of files
-    const form = new formidable.IncomingForm();
-
-    form.parse(req, (err, fields, files) => {
-      if (err) res.status(404).json({ message: err });
-
-      // streaming to gridfs
-      var writestream = gfs.createWriteStream({
-        filename: files.someExpressFiles.name,
-        metadata: "",
-      });
-      fs.createReadStream(files.someExpressFiles.path).pipe(writestream);
-    });
-  });
-
   app.post("/api/createFolder", async (req, res) => {
     const collection = db.collection("folders");
-    console.log(req.body);
     const folder = {
       UserID: "",
       ParentID: "",
@@ -59,5 +32,25 @@ module.exports = function (app, db, gfs) {
     } catch (err) {
       res.status(404).json({ message: "Unable to create folder" });
     }
+  });
+
+  app.post("/api/upload", checkAuthenticated, (req, res) => {
+    //Pass in an array of files
+    const form = new formidable.IncomingForm();
+    form.parse(req, (err, fields, files) => {
+      if (err) res.status(404).json({ message: err });
+      // streaming to gridfs
+      var writestream = gfs.createWriteStream({
+        filename: files.someExpressFiles.name,
+        metadata: {
+          user: req.user._id,
+        },
+      });
+      fs.createReadStream(files.someExpressFiles.path).pipe(writestream);
+    });
+    res.sendStatus(200);
+  });
+  app.use((req, res) => {
+    res.status(404).send({ url: req.originalUrl + " could not be found" });
   });
 };

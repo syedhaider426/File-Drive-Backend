@@ -1,6 +1,10 @@
 const bcrypt = require("bcrypt");
+const {
+  checkNotAuthenticated,
+} = require("../middlewares/passport/passport-authenticate");
+
 module.exports = function (app, db, passport) {
-  app.get("/register", (req, res) => {
+  app.get("/register", checkNotAuthenticated, (req, res) => {
     res.send(`
               <h2>With <code>"Register"</code></h2>
               <form action="/api/register" method="post">
@@ -11,7 +15,7 @@ module.exports = function (app, db, passport) {
               
             `);
   });
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", checkNotAuthenticated, async (req, res) => {
     const collection = db.collection("users");
     try {
       const password = await bcrypt.hash(req.body.password, 10);
@@ -21,7 +25,7 @@ module.exports = function (app, db, passport) {
       res.status(404).json({ message: err });
     }
   });
-  app.get("/login", (req, res) => {
+  app.get("/login", checkNotAuthenticated, (req, res) => {
     res.send(`
               <h2>With <code>"Login"</code></h2>
               <form action="/login" method="post">
@@ -29,14 +33,16 @@ module.exports = function (app, db, passport) {
                 <div>Password field title: <input type="text" name="password" /></div>
                 <input type="submit" value="Upload" />
               </form>
-              
             `);
   });
+
   app.post(
     "/login",
-    passport.authenticate("local", {
-      successRedirect: "/",
-      failureRedirect: "/login",
-    })
+    checkNotAuthenticated,
+    passport.authenticate("local"),
+    (req, res) => {
+      if (!req.user) res.redirect("/login");
+      res.redirect("/");
+    }
   );
 };

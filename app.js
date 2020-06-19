@@ -7,6 +7,7 @@ const port = keys.port;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+require("./startup/passportStartup")(app);
 require("./startup/db")(app);
-
+require("./startup/server")(app);
 app.listen(port, () => console.log(`Connected on port ${port}`));
