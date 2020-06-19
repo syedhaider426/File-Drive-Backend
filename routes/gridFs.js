@@ -26,19 +26,17 @@ module.exports = function (app, db, gfs) {
       CreatedBy: Date.now(),
       LastUpdatedBy: Date.now(),
     };
-    try {
-      await collection.insertOne(folder);
-      res.status(200).json({ message: "Created folder" });
-    } catch (err) {
-      res.status(404).json({ message: "Unable to create folder" });
-    }
+    const result = await collection.insertOne(folder);
+    if (!result)
+      return res.status(404).json({ message: "Unable to create folder" });
+    return res.status(200).json({ message: "Created folder" });
   });
 
   app.post("/api/upload", checkAuthenticated, (req, res) => {
     //Pass in an array of files
     const form = new formidable.IncomingForm();
     form.parse(req, (err, fields, files) => {
-      if (err) res.status(404).json({ message: err });
+      if (err) return res.status(404).json({ message: err });
       // streaming to gridfs
       var writestream = gfs.createWriteStream({
         filename: files.someExpressFiles.name,
@@ -48,9 +46,11 @@ module.exports = function (app, db, gfs) {
       });
       fs.createReadStream(files.someExpressFiles.path).pipe(writestream);
     });
-    res.sendStatus(200);
+    return res.sendStatus(200);
   });
   app.use((req, res) => {
-    res.status(404).send({ url: req.originalUrl + " could not be found" });
+    return res
+      .status(404)
+      .send({ url: req.originalUrl + " could not be found" });
   });
 };
