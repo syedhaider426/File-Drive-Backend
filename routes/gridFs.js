@@ -38,12 +38,15 @@ module.exports = function (app, db, gfs) {
     form.parse(req, (err, fields, files) => {
       if (err) return res.status(404).json({ message: err });
       // streaming to gridfs
-      var writestream = gfs.createWriteStream({
-        filename: files.someExpressFiles.name,
+      var options = {
         metadata: {
           user: req.user._id,
         },
-      });
+      };
+      var writestream = gfs.openUploadStream(
+        files.someExpressFiles.name,
+        options
+      );
       fs.createReadStream(files.someExpressFiles.path).pipe(writestream);
     });
     return res.sendStatus(200);

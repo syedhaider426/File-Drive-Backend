@@ -1,6 +1,5 @@
 const mongodb = require("mongodb");
 const MongoClient = mongodb.MongoClient;
-const Grid = require("gridfs-stream");
 //Connection URL
 const url = "mongodb://localhost:27017";
 
@@ -22,7 +21,7 @@ module.exports = function (app) {
       console.log("Connected to DB");
       const db = client.db(dbName);
       global.db = db;
-      const gfs = Grid(db, mongodb);
+      const gfs = new mongodb.GridFSBucket(db);
       require("../routes/gridFs")(app, db, gfs);
     } catch (err) {
       console.log("Unable to connect to DB");
