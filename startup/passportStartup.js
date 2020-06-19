@@ -12,6 +12,5 @@ module.exports = function (app) {
   );
   app.use(passport.initialize()); //passport logic
   app.use(passport.session()); //persist across the session
-  initialize(passport);
-  require("../routes/userRoutes")(app, global.db, passport);
+  initialize(app, passport);
 };

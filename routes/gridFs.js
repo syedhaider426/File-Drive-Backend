@@ -3,19 +3,10 @@ const formidable = require("formidable");
 const {
   checkAuthenticated,
 } = require("../middlewares/passport/checkAuthentication");
-module.exports = function (app, db, gfs) {
-  app.get("/folder", (req, res) => {
-    res.send(`
-          <h2>With <code>"express"</code> npm package</h2>
-          <form action="/api/createFolder" method="post">
-            <div>Text field title: <input type="text" name="title" /></div>
-            <input type="submit" value="Upload" />
-          </form>
-        `);
-  });
 
+module.exports = function (app, db, gfs) {
   app.post("/api/createFolder", async (req, res) => {
-    const collection = db.collection("folders");
+    const folders = db.collection("folders");
     const folder = {
       UserID: "",
       ParentID: "",
@@ -26,7 +17,7 @@ module.exports = function (app, db, gfs) {
       CreatedBy: Date.now(),
       LastUpdatedBy: Date.now(),
     };
-    const result = await collection.insertOne(folder);
+    const result = await folders.insertOne(folder);
     if (!result)
       return res.status(404).json({ message: "Unable to create folder" });
     return res.status(200).json({ message: "Created folder" });
@@ -50,10 +41,5 @@ module.exports = function (app, db, gfs) {
       fs.createReadStream(files.someExpressFiles.path).pipe(writestream);
     });
     return res.sendStatus(200);
-  });
-  app.use((req, res) => {
-    return res
-      .status(404)
-      .send({ url: req.originalUrl + " could not be found" });
   });
 };
