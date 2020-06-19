@@ -46,11 +46,6 @@ module.exports = function (app) {
               
             `);
   });
-  require("../routes/userRoutes")(app);
+
   app.set("view engine", "ejs");
-  app.use((req, res) => {
-    return res
-      .status(404)
-      .send({ url: req.originalUrl + " could not be found" });
-  });
 };

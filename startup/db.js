@@ -6,7 +6,6 @@ module.exports = function (app) {
   (async () => {
     try {
       await Connection.connectToMongo();
-      require("../routes/gridFs")(app, Connection.db, Connection.gfs);
     } catch (err) {
       console.log("Unable to connect to DB");
       process.exit(-1);
