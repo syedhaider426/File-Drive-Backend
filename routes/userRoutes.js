@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const {
   checkNotAuthenticated,
-} = require("../middlewares/passport/passport-authenticate");
+} = require("../middlewares/passport/checkAuthentication");
 
 module.exports = function (app, db, passport) {
   app.get("/register", checkNotAuthenticated, (req, res) => {

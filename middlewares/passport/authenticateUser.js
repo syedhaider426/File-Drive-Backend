@@ -1,8 +1,8 @@
 const bcrypt = require("bcrypt");
 
 authenticateUser = async (email, password, done) => {
-  const validUser = await getUserByEmail(email);
-  const user = validUser[0];
+  const user = await getUserByEmail(email);
+  console.log(user);
   if (user == null) {
     return done(null, false);
   }
@@ -23,12 +23,12 @@ authenticateUser = async (email, password, done) => {
 // toArray() without a callback function argument already returns a promise.
 getUserByEmail = (email) => {
   // Returns a Collection instance, not a Promise, so no need for await.
-  const collection = global.db.collection("users");
+  const users = global.db.collection("users");
 
   // Without a callback, toArray() returns a Promise.
   // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  const result = collection.find({ email: email });
-  return result.toArray();
+  const result = users.findOne({ email: email });
+  return result;
 };
 
 module.exports = {

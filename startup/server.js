@@ -1,12 +1,5 @@
 const helmet = require("helmet");
 const cors = require("cors");
-const session = require("express-session");
-const passport = require("passport");
-const {
-  initialize: initializePassport,
-  checkNotAuthenticated,
-  checkAuthenticated,
-} = require("../middlewares/passport/passport-config");
 
 module.exports = function (app) {
   app.use(helmet());

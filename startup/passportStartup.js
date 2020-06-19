@@ -1,8 +1,6 @@
-const helmet = require("helmet");
-const cors = require("cors");
 const session = require("express-session");
 const passport = require("passport");
-const { initialize } = require("../middlewares/passport/passport-config");
+const { initialize } = require("../middlewares/passport/passportConfig");
 
 module.exports = function (app) {
   app.use(

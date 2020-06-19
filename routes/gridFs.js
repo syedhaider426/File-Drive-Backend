@@ -2,7 +2,7 @@ const fs = require("fs");
 const formidable = require("formidable");
 const {
   checkAuthenticated,
-} = require("../middlewares/passport/passport-authenticate");
+} = require("../middlewares/passport/checkAuthentication");
 module.exports = function (app, db, gfs) {
   app.get("/folder", (req, res) => {
     res.send(`

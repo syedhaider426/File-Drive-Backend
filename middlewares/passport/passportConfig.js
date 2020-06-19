@@ -1,7 +1,7 @@
 const LocalStrategy = require("passport-local").Strategy;
 
 const { authenticateUser } = require("./authenticateUser");
-const user = require("./passport-serialize");
+const user = require("./passportSerialize");
 /* http://toon.io/understanding-passportjs-authentication-flow/*/
 
 initialize = (passport) => {
