@@ -14,16 +14,17 @@ const client = new MongoClient(url, {
 });
 
 //Use connect method to connect to the server
-
+//https://stackoverflow.com/questions/49397608/what-is-best-way-to-handle-global-connection-of-mongodb-in-nodejs
 module.exports = function (app) {
   (async () => {
     try {
       await client.connect();
       const db = client.db(dbName);
+      global.db = db;
       const gfs = Grid(db, mongodb);
       console.log("Connected to DB");
       require("../routes/gridFs")(app, db, gfs);
-      require("../startup/server")(app);
+      require("../startup/server")(app, db);
     } catch (err) {
       console.log("Unable to connect to DB");
       process.exit(-1);
