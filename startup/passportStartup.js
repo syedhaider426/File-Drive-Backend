@@ -1,11 +1,12 @@
 const session = require("express-session");
 const passport = require("passport");
 const { initialize } = require("../middlewares/passport/passportConfig");
+const passportKey = require("../config/keys").passportKey;
 
 module.exports = function (app) {
   app.use(
     session({
-      secret: "secret",
+      secret: passportKey,
       resave: false,
       saveUninitialized: true,
     })
