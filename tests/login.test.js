@@ -1,7 +1,7 @@
 /* Login tests */
 
 describe("Login", () => {
-  beforeEach(async () => {
+  beforeAll(async () => {
     await page.goto("http://localhost:3000");
   });
 
@@ -30,6 +30,7 @@ describe("Login", () => {
         password: "a",
       });
       await page.click("button");
+      await page.waitForSelector(".File");
       await expect(page).toMatch("File");
     });
   });

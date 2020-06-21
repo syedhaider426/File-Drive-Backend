@@ -19,8 +19,8 @@ module.exports = function (app) {
     res.send(`
               <h2>With <code>"Login"</code></h2>
               <form action="/login" method="post" name="Login">
-                <div><label class="email">Email:   </label><input type="text" name="email" /></div>
-                <div><label class="password">Password:  </label> <input type="text" name="password" /></div>
+                <div><label class="email">Email:</label><input type="text" name="email" /></div>
+                <div><label class="password">Password:</label> <input type="text" name="password" /></div>
                 <button type="submit" value="Submit">Submit</button>
               </form>
             `);
@@ -28,12 +28,11 @@ module.exports = function (app) {
   app.get("/register", checkNotAuthenticated, (req, res) => {
     res.send(`
               <h2>With <code>"Register"</code></h2>
-              <form action="/api/register" method="post">
-                <div>Email field title: <input type="text" name="email" /></div>
-                <div>Password field title: <input type="text" name="password" /></div>
-                <input type="submit" value="Upload" />
+              <form action="/register" method="post" name="Register">
+                <div><label class="email">Email:</label><input type="text" name="email" /></div>
+                <div><label class="password">Password:</label> <input type="text" name="password" /></div>
+                <button type="submit" value="Register">Register</button>
               </form>
-              
             `);
   });
 };

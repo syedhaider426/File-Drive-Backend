@@ -1,21 +1,24 @@
 const bcrypt = require("bcrypt");
 const Connection = require("../database/Connection");
-const db = Connection.db;
 
 const register = async (req, res) => {
+  const db = Connection.db;
   const users = db.collection("users");
   const email = await users.findOne({ email: req.body.email });
-  if (email)
-    return res
-      .status(404)
-      .json({ message: "User with that email already exists" });
+  if (email) return res.redirect("/register");
   const password = await bcrypt.hash(req.body.password, 10);
-  const result = await users.insertOne({
+  const user = {
     email: req.body.email,
     password: password,
+  };
+  const result = await users.insertOne(user);
+  if (!result) return res.redirect("/register");
+  req.login(user, function (err) {
+    if (err) {
+      return next(err);
+    }
+    return res.redirect("/file");
   });
-  if (!result) return res.status(404).json({ message: err });
-  return res.redirect("/login");
 };
 
 module.exports = register;
