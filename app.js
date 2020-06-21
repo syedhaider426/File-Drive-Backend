@@ -4,7 +4,7 @@ const port = require("./config/keys").port;
 //https://stackoverflow.com/questions/47575177/express-req-body-is-empty-in-form-submission
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true }));
 require("./startup/server")(app);
 require("./startup/passportStartup")(app);
 require("./startup/db")(app);
