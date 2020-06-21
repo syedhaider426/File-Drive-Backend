@@ -1,11 +1,13 @@
 const LocalStrategy = require("passport-local").Strategy;
-const { authenticateUser } = require("./authenticateUser");
+
 const user = require("./passportSerialize");
 /* http://toon.io/understanding-passportjs-authentication-flow/*/
-const { checkNotAuthenticated } = require("./checkAuthentication");
+const { checkNotAuthenticated } = require("../middlewares/requireLogin");
 
 initializePassport = (app, passport) => {
-  passport.use(new LocalStrategy({ usernameField: "email" }, authenticateUser));
+  passport.use(
+    new LocalStrategy({ usernameField: "email" }, user.authenticate)
+  );
   passport.serializeUser(user.serialize);
   passport.deserializeUser(user.deserialize);
   app.post(
@@ -13,7 +15,7 @@ initializePassport = (app, passport) => {
     checkNotAuthenticated,
     passport.authenticate("local", {
       successRedirect: "/file",
-      failureRedirect: "/login",
+      failureRedirect: "/",
     })
   );
 

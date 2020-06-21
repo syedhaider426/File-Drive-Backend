@@ -1,5 +1,5 @@
 const passport = require("passport");
-const initializePassport = require("../middlewares/passport/passportConfig");
+const initializePassport = require("../services/passportConfig");
 
 module.exports = function (app) {
   app.use(passport.initialize()); //passport logic

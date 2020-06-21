@@ -1,6 +1,4 @@
-const {
-  checkAuthenticated,
-} = require("../middlewares/passport/checkAuthentication");
+const { checkAuthenticated } = require("../middlewares/requireLogin");
 const {
   createFolder,
   uploadFile,
