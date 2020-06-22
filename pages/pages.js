@@ -70,9 +70,9 @@ module.exports = function (app) {
   app.get("/resetEmail", checkAuthenticated, (req, res) => {
     res.send(`
               <h2>With <code>"Reset Email"</code></h2>
-              <form action="/resetPassword" method="post" name="ResetEmail">
+              <form action="/resetEmail" method="post" name="ResetEmail">
                 <div><label class="email">Current Email:</label><input type="text" name="email" /></div>     
-                <div><label class="nEmail">New Email:</label><input type="text" name="nEmail" /></div>     
+                <div><label class="nEmail">New Email:</label><input type="text" name="newEmail" /></div>     
                 <button type="submit" value="Confirm">Confirm</button>
               </form>
             `);

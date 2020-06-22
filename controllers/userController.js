@@ -18,7 +18,14 @@ getUserByEmail = async (email) => {
 getUserById = async (id) => {
   const db = Connection.db;
   const users = db.collection("users");
-  const result = await users.findOne({ _id: new mongodb.ObjectID(id) });
+  const result = await users.findOne(
+    { _id: new mongodb.ObjectID(id) },
+    {
+      projection: {
+        email: 1,
+      },
+    }
+  );
   return result;
 };
 
@@ -43,18 +50,24 @@ resetPassword = async (req, res) => {
     { _id: user._id },
     { $set: { password: hash } }
   );
-  console.log(result);
   return res.redirect("/home");
 };
 
 resetEmail = async (req, res) => {
   const db = Connection.db;
   const users = db.collection("users");
-  const foundEmail = await users.findOne({ email: req.body.email });
+  const foundEmail = await users.findOne(
+    { email: req.body.newEmail },
+    {
+      projection: {
+        email: 1,
+      },
+    }
+  );
   if (foundEmail) return res.redirect("/resetEmail");
-  const result = await users.findOneAndUpdate(
+  const result = await users.updateOne(
     { _id: new mongodb.ObjectID(req.user._id) },
-    { $set: { email: req.body.email } }
+    { $set: { email: req.body.newEmail } }
   );
   return res.redirect("/home");
 };
