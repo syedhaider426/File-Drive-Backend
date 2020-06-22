@@ -1,12 +1,12 @@
 const Connection = require("../database/Connection");
 const mongodb = require("mongodb");
+const bcrypt = require("bcrypt");
 //https://stackoverflow.com/questions/54033722/async-await-is-not-working-for-mongo-db-queries
 // You could even ditch the "async" keyword here,
 // because you do not do/need any awaits inside the function.
 // toArray() without a callback function argument already returns a promise.
 getUserByEmail = async (email) => {
   const db = Connection.db;
-  // Returns a Collection instance, not a Promise, so no need for await.
   const users = db.collection("users");
 
   // Without a callback, toArray() returns a Promise.
@@ -17,16 +17,51 @@ getUserByEmail = async (email) => {
 
 getUserById = async (id) => {
   const db = Connection.db;
-  // Returns a Collection instance, not a Promise, so no need for await.
   const users = db.collection("users");
-
-  // Without a callback, toArray() returns a Promise.
-  // Because our functionOne is an "async" function, you do not need "await" for the return value.
   const result = await users.findOne({ _id: new mongodb.ObjectID(id) });
   return result;
+};
+
+resetPassword = async (req, res) => {
+  const db = Connection.db;
+  const users = db.collection("users");
+  const user = await users.findOne(
+    { _id: new mongodb.ObjectID(req.user._id) },
+    {
+      projection: {
+        password: 1,
+      },
+    }
+  );
+  const currentPassword = await bcrypt.compare(
+    req.body.currentPassword,
+    user.password
+  );
+  if (!currentPassword) return res.redirect("/resetPassword");
+  const hash = await bcrypt.hash(req.body.password, 10);
+  const result = await users.updateOne(
+    { _id: user._id },
+    { $set: { password: hash } }
+  );
+  console.log(result);
+  return res.redirect("/home");
+};
+
+resetEmail = async (req, res) => {
+  const db = Connection.db;
+  const users = db.collection("users");
+  const foundEmail = await users.findOne({ email: req.body.email });
+  if (foundEmail) return res.redirect("/resetEmail");
+  const result = await users.findOneAndUpdate(
+    { _id: new mongodb.ObjectID(req.user._id) },
+    { $set: { email: req.body.email } }
+  );
+  return res.redirect("/home");
 };
 
 module.exports = {
   getUserByEmail,
   getUserById,
+  resetPassword,
+  resetEmail,
 };

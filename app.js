@@ -8,7 +8,8 @@ app.use(express.urlencoded({ extended: true }));
 require("./startup/server")(app);
 require("./startup/passportStartup")(app);
 require("./startup/db")(app);
-require("./routes/gridFs")(app);
+require("./routes/fileUploadRoutes")(app);
+require("./routes/folderUploadRoutes")(app);
 require("./routes/userRoutes")(app);
 require("./pages/pages")(app);
 app.use((req, res) => {

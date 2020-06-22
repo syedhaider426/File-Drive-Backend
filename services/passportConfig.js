@@ -14,7 +14,7 @@ initializePassport = (app, passport) => {
     "/login",
     checkNotAuthenticated,
     passport.authenticate("local", {
-      successRedirect: "/file",
+      successRedirect: "/home",
       failureRedirect: "/",
     })
   );

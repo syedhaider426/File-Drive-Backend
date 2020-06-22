@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const Connection = require("../database/Connection");
 
-const register = async (req, res) => {
+register = async (req, res) => {
   const db = Connection.db;
   const users = db.collection("users");
   const email = await users.findOne({ email: req.body.email });
