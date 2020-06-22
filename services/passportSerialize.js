@@ -9,15 +9,20 @@ const user = {
     done(null, user._id);
   },
   deserialize: async (id, done) => {
-    const validUser = await getUserById(id);
-    return done(null, validUser);
+    try {
+      const validUser = await getUserById(id);
+      return done(null, validUser);
+    } catch (err) {
+      console.log(err);
+    }
   },
   authenticate: async (email, password, done) => {
-    const user = await getUserByEmail(email);
-    if (user == null) {
-      return done(null, false);
-    }
     try {
+      const user = await getUserByEmail(email);
+      if (user == null) {
+        return done(null, false);
+      }
+
       if ((await bcrypt.compare(password, user.password)) && user.isVerified) {
         return done(null, user);
       } else {

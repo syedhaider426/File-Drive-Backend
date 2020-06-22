@@ -45,28 +45,27 @@ register = async (req, res) => {
         token.token +
         "\n",
     };
-    console.log(mailOptions.text);
     await sgMail.send(mailOptions);
-    console.log("Sent mail");
     if (!result) return res.redirect("/register");
-    res.redirect("/");
-  } catch (error) {
-    console.error(error);
-    if (error.response) {
-      console.error(error.response.body);
-    }
+    res.redirect("/verification");
+  } catch (err) {
+    console.error(err);
   }
 };
 
 confirmUser = async (req, res) => {
   const db = Connection.db;
   const tokens = db.collection("tokens");
-  const result = await tokens.findOne({ token: req.params.token });
-  if (!result) res.redirect("/register");
-  const userID = result.userID;
-  const users = db.collection("users");
-  await users.updateOne({ _id: userID }, { $set: { isVerified: true } });
-  return res.redirect("/");
+  try {
+    const result = await tokens.findOne({ token: req.params.token });
+    if (!result) res.redirect("/register");
+    const userID = result.userID;
+    const users = db.collection("users");
+    await users.updateOne({ _id: userID }, { $set: { isVerified: true } });
+    return res.redirect("/");
+  } catch (err) {
+    console.error("Err", err);
+  }
 };
 
 module.exports = { register, confirmUser };

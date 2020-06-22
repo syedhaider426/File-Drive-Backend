@@ -11,8 +11,7 @@ uploadFile = (req, res) => {
     files.push(file.name);
     paths.push(file.path);
   });
-  form.parse(req);
-  form.once("end", () => {
+  form.parse(req, () => {
     // streaming to gridfs
     var options = {
       metadata: {

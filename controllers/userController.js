@@ -32,44 +32,52 @@ getUserById = async (id) => {
 resetPassword = async (req, res) => {
   const db = Connection.db;
   const users = db.collection("users");
-  const user = await users.findOne(
-    { _id: req.user._id },
-    {
-      projection: {
-        password: 1,
-      },
-    }
-  );
-  const currentPassword = await bcrypt.compare(
-    req.body.currentPassword,
-    user.password
-  );
-  if (!currentPassword) return res.redirect("/resetPassword");
-  const hash = await bcrypt.hash(req.body.password, 10);
-  const result = await users.updateOne(
-    { _id: user._id },
-    { $set: { password: hash } }
-  );
-  return res.redirect("/home");
+  try {
+    const user = await users.findOne(
+      { _id: req.user._id },
+      {
+        projection: {
+          password: 1,
+        },
+      }
+    );
+    const currentPassword = await bcrypt.compare(
+      req.body.currentPassword,
+      user.password
+    );
+    if (!currentPassword) return res.redirect("/resetPassword");
+    const hash = await bcrypt.hash(req.body.password, 10);
+    const result = await users.updateOne(
+      { _id: user._id },
+      { $set: { password: hash } }
+    );
+    return res.redirect("/home");
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 resetEmail = async (req, res) => {
   const db = Connection.db;
   const users = db.collection("users");
-  const foundEmail = await users.findOne(
-    { email: req.body.newEmail },
-    {
-      projection: {
-        email: 1,
-      },
-    }
-  );
-  if (foundEmail) return res.redirect("/resetEmail");
-  const result = await users.updateOne(
-    { _id: req.user._id },
-    { $set: { email: req.body.newEmail } }
-  );
-  return res.redirect("/home");
+  try {
+    const foundEmail = await users.findOne(
+      { email: req.body.newEmail },
+      {
+        projection: {
+          email: 1,
+        },
+      }
+    );
+    if (foundEmail) return res.redirect("/resetEmail");
+    const result = await users.updateOne(
+      { _id: req.user._id },
+      { $set: { email: req.body.newEmail } }
+    );
+    return res.redirect("/home");
+  } catch (err) {
+    console.error(err);
+  }
 };
 
 module.exports = {

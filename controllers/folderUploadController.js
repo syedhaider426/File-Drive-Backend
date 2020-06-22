@@ -13,10 +13,14 @@ createFolder = async (req, res) => {
     CreatedBy: new Date(),
     LastUpdatedBy: new Date(),
   };
-  const result = await folders.insertOne(folder);
-  if (!result)
-    return res.status(404).json({ message: "Unable to create folder" });
-  return res.status(200).json({ message: "Created folder" });
+  try {
+    const result = await folders.insertOne(folder);
+    if (!result)
+      return res.status(404).json({ message: "Unable to create folder" });
+    return res.status(200).json({ message: "Created folder" });
+  } catch (err) {
+    console.error("Err", err);
+  }
 };
 
 module.exports = createFolder;
