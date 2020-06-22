@@ -18,7 +18,7 @@ const user = {
       return done(null, false);
     }
     try {
-      if (await bcrypt.compare(password, user.password)) {
+      if ((await bcrypt.compare(password, user.password)) && user.isVerified) {
         return done(null, user);
       } else {
         return done(null, false);

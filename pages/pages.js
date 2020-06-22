@@ -77,4 +77,12 @@ module.exports = function (app) {
               </form>
             `);
   });
+  app.get("/verification", (req, res) => {
+    res.send(`
+              <h2>With <code>"Verification"</code></h2>
+                <div>
+                  Thank you for creating an account. Please check account to verify.</label>
+                </div>
+            `);
+  });
 };

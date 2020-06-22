@@ -33,7 +33,7 @@ resetPassword = async (req, res) => {
   const db = Connection.db;
   const users = db.collection("users");
   const user = await users.findOne(
-    { _id: new mongodb.ObjectID(req.user._id) },
+    { _id: req.user._id },
     {
       projection: {
         password: 1,
@@ -66,7 +66,7 @@ resetEmail = async (req, res) => {
   );
   if (foundEmail) return res.redirect("/resetEmail");
   const result = await users.updateOne(
-    { _id: new mongodb.ObjectID(req.user._id) },
+    { _id: req.user._id },
     { $set: { email: req.body.newEmail } }
   );
   return res.redirect("/home");

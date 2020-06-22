@@ -8,10 +8,10 @@ createFolder = async (req, res) => {
     ParentID: "",
     Title: req.body.title,
     Description: "",
-    CreatedOn: Date.now(),
-    LastUpdatedOn: Date.now(),
-    CreatedBy: Date.now(),
-    LastUpdatedBy: Date.now(),
+    CreatedOn: new Date(),
+    LastUpdatedOn: new Date(),
+    CreatedBy: new Date(),
+    LastUpdatedBy: new Date(),
   };
   const result = await folders.insertOne(folder);
   if (!result)
