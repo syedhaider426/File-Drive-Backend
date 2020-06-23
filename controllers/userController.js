@@ -1,6 +1,11 @@
 const Connection = require("../database/Connection");
 const mongodb = require("mongodb");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const keys = require("../config/keys");
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(keys.sendgrid_api_key);
+
 //https://stackoverflow.com/questions/54033722/async-await-is-not-working-for-mongo-db-queries
 // You could even ditch the "async" keyword here,
 // because you do not do/need any awaits inside the function.
@@ -80,9 +85,70 @@ resetEmail = async (req, res) => {
   }
 };
 
+forgotPassword = async (req, res) => {
+  const db = Connection.db;
+  const users = db.collection("users");
+  try {
+    const user = await users.findOne(
+      { email: req.body.email },
+      {
+        projection: {
+          email: 1,
+        },
+      }
+    );
+    if (!user) res.redirect("/forgotPassword");
+    const token = {
+      userID: user._id,
+      token: crypto.randomBytes(16).toString("hex"),
+      createdAt: new Date(),
+    };
+    await db.collection("tokens").insertOne(token);
+    let mailOptions = {
+      from: keys.email,
+      to: "shayder426@gmail.com",
+      subject: "Forgotten Password - Drive Clone",
+      text:
+        "Hello,\n\n" +
+        "Please reset your password by clicking the link: \nhttp://" +
+        req.headers.host +
+        "/newPassword/" +
+        token.token +
+        "\n",
+    };
+    console.log(mailOptions);
+    await sgMail.send(mailOptions);
+    res.redirect("/emailSentConfirmation");
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+newPassword = async (req, res) => {
+  const db = Connection.db;
+  const tokens = db.collection("tokens");
+  try {
+    const user = await tokens.findOne({ token: req.body.token });
+    if (!user) res.redirect("/register");
+    const userID = user.userID;
+    const users = db.collection("users");
+    if (!req.body.password) return res.redirect("/register");
+    const hash = await bcrypt.hash(req.body.password, 10);
+    const result = await users.updateOne(
+      { _id: userID },
+      { $set: { password: hash } }
+    );
+    return res.redirect("/passwordChangeSuccess");
+  } catch (err) {
+    console.error("Err", err);
+  }
+};
+
 module.exports = {
   getUserByEmail,
   getUserById,
   resetPassword,
   resetEmail,
+  forgotPassword,
+  newPassword,
 };

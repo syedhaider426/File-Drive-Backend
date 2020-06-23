@@ -41,7 +41,7 @@ register = async (req, res) => {
         "Hello,\n\n" +
         "Please verify your account by clicking the link: \nhttp://" +
         req.headers.host +
-        "/confirmation/" +
+        "/confirmRegistration/" +
         token.token +
         "\n",
     };
@@ -62,7 +62,7 @@ confirmUser = async (req, res) => {
     const userID = result.userID;
     const users = db.collection("users");
     await users.updateOne({ _id: userID }, { $set: { isVerified: true } });
-    return res.redirect("/");
+    return res.redirect("/confirmationSuccess");
   } catch (err) {
     console.error("Err", err);
   }

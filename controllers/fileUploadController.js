@@ -7,11 +7,12 @@ uploadFile = (req, res) => {
   //Pass in an array of files
   const form = new formidable.IncomingForm();
   (files = []), (paths = []);
-  form.on("file", function (field, file) {
+  form.on("file", (field, file) => {
     files.push(file.name);
     paths.push(file.path);
   });
-  form.parse(req, () => {
+  form.parse(req);
+  form.once("end", () => {
     // streaming to gridfs
     var options = {
       metadata: {
