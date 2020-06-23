@@ -10,7 +10,8 @@ require("./startup/passportStartup")(app);
 require("./startup/db")(app);
 require("./routes/fileUploadRoutes")(app);
 require("./routes/folderUploadRoutes")(app);
-require("./routes/userRoutes")(app);
+require("./routes/registerRoutes")(app);
+require("./routes/accountSettingRoutes")(app);
 require("./pages/pages")(app);
 app.use((req, res) => {
   return res.status(404).send({ url: req.originalUrl + " could not be found" });

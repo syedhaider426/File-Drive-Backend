@@ -108,7 +108,7 @@ forgotPassword = async (req, res) => {
     let mailOptions = {
       from: keys.email,
       to: "shayder426@gmail.com",
-      subject: "Forgotten Password - Drive Clone",
+      subject: "Forgotten Password - GDrive Clone",
       text:
         "Hello,\n\n" +
         "Please reset your password by clicking the link: \nhttp://" +

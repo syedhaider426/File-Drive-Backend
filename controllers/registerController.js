@@ -37,7 +37,7 @@ register = async (req, res) => {
     let mailOptions = {
       from: keys.email,
       to: req.body.email,
-      subject: "Account Verification - Drive Clone",
+      subject: "Account Verification - GDrive Clone",
       text:
         "Hello,\n\n" +
         "Please verify your account by clicking the link: \nhttp://" +
