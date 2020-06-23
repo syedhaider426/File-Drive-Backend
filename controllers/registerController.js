@@ -4,9 +4,25 @@ const crypto = require("crypto");
 
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
+const Joi = require("@hapi/joi");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
 register = async (req, res) => {
+  const schema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required(),
+    repeat_password: Joi.ref("password"),
+  });
+  try {
+    await schema.validate({
+      email: req.body.email,
+      password: req.body.password,
+      repeat_password: req.body.confirmPassword,
+    });
+  } catch (err) {
+    return res.redirect("/register");
+  }
+
   const db = Connection.db;
   const users = db.collection("users");
   try {

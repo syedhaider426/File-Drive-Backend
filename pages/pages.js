@@ -53,6 +53,7 @@ module.exports = function (app) {
               <form action="/register" method="post" name="Register">
                 <div><label class="email">Email:</label><input type="text" name="email" /></div>
                 <div><label class="password">Password:</label> <input type="text" name="password" /></div>
+                <div><label class="confirmPassword">Confirm Password:</label> <input type="text" name="confirmPassword" /></div>
                 <button type="submit" value="Register">Register</button>
               </form>
             `);

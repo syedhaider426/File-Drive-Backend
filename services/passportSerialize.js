@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const Joi = require("@hapi/joi");
 const {
   getUserById,
   getUserByEmail,
@@ -17,6 +18,15 @@ const user = {
     }
   },
   authenticate: async (email, password, done) => {
+    const schema = Joi.object({
+      email: Joi.string().email().required(),
+      password: Joi.string().required(),
+    });
+    try {
+      await schema.validate({ email: email, password: password });
+    } catch (err) {
+      return done(null, false);
+    }
     try {
       const user = await getUserByEmail(email);
       if (user == null) {
