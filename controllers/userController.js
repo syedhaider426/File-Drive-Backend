@@ -100,6 +100,7 @@ forgotPassword = async (req, res) => {
     if (!user) res.redirect("/forgotPassword");
     const token = {
       userID: user._id,
+      path: "/newPassword",
       token: crypto.randomBytes(16).toString("hex"),
       createdAt: new Date(),
     };
@@ -112,11 +113,11 @@ forgotPassword = async (req, res) => {
         "Hello,\n\n" +
         "Please reset your password by clicking the link: \nhttp://" +
         req.headers.host +
-        "/newPassword/" +
+        "/newPassword?token=" +
         token.token +
         "\n",
     };
-    console.log(mailOptions);
+
     await sgMail.send(mailOptions);
     res.redirect("/emailSentConfirmation");
   } catch (err) {
@@ -128,7 +129,10 @@ newPassword = async (req, res) => {
   const db = Connection.db;
   const tokens = db.collection("tokens");
   try {
-    const user = await tokens.findOne({ token: req.body.token });
+    const user = await tokens.findOne({
+      token: req.body.token,
+      path: req.path,
+    });
     if (!user) res.redirect("/register");
     const userID = user.userID;
     const users = db.collection("users");

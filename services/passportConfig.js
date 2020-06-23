@@ -10,6 +10,7 @@ initializePassport = (app, passport) => {
   );
   passport.serializeUser(user.serialize);
   passport.deserializeUser(user.deserialize);
+  /* #8 - Embrace Rate Limiting */
   app.post(
     "/login",
     checkNotAuthenticated,

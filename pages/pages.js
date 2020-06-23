@@ -87,7 +87,7 @@ module.exports = function (app) {
               </form>
             `);
   });
-  app.get("/newPassword/:token", checkToken, (req, res) => {
+  app.get("/newPassword", checkToken, (req, res) => {
     res.send(`
               <h2>With <code>"Reset Password"</code></h2>
               <form action="/newPassword" method="post" name="newPassword">

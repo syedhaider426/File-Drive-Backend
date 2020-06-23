@@ -29,6 +29,7 @@ register = async (req, res) => {
     const newUserID = result.insertedId;
     const token = {
       userID: newUserID,
+      path: "/confirmRegistration",
       token: crypto.randomBytes(16).toString("hex"),
       createdAt: new Date(),
     };
@@ -41,7 +42,7 @@ register = async (req, res) => {
         "Hello,\n\n" +
         "Please verify your account by clicking the link: \nhttp://" +
         req.headers.host +
-        "/confirmRegistration/" +
+        "/confirmRegistration?token=" +
         token.token +
         "\n",
     };
@@ -57,11 +58,13 @@ confirmUser = async (req, res) => {
   const db = Connection.db;
   const tokens = db.collection("tokens");
   try {
-    const result = await tokens.findOne({ token: req.params.token });
+    const result = await tokens.findOne({ token: req.query.token });
     if (!result) res.redirect("/register");
-    const userID = result.userID;
     const users = db.collection("users");
-    await users.updateOne({ _id: userID }, { $set: { isVerified: true } });
+    await users.updateOne(
+      { _id: result.userID },
+      { $set: { isVerified: true } }
+    );
     return res.redirect("/confirmationSuccess");
   } catch (err) {
     console.error("Err", err);

@@ -13,7 +13,7 @@ const checkToken = require("../middlewares/requireToken");
 module.exports = (app) => {
   app.post("/register", checkNotAuthenticated, register);
 
-  app.get("/confirmRegistration/:token", checkToken, confirmUser);
+  app.get("/confirmRegistration", checkToken, confirmUser);
 
   app.post("/resetPassword", checkAuthenticated, resetPassword);
 
