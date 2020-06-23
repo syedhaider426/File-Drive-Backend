@@ -1,6 +1,15 @@
 const Connection = require("../database/Connection");
 
 createFolder = async (req, res) => {
+  const schema = Joi.object({
+    folder: Joi.string().required(),
+  });
+  try {
+    await schema.validate({ folder: req.body.title });
+  } catch (err) {
+    return res.redirect("/resetEmail");
+  }
+
   const db = Connection.db;
   const folders = db.collection("folders");
   const folder = {

@@ -2,6 +2,7 @@ const Connection = require("../database/Connection");
 const mongodb = require("mongodb");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const Joi = require("@hapi/joi");
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(keys.sendgrid_api_key);
@@ -35,6 +36,15 @@ getUserById = async (id) => {
 };
 
 resetPassword = async (req, res) => {
+  const schema = Joi.object({
+    password: Joi.string().required(),
+  });
+  try {
+    await schema.validate({ password: req.body.password });
+  } catch (err) {
+    return res.redirect("/resetPassword");
+  }
+
   const db = Connection.db;
   const users = db.collection("users");
   try {
@@ -63,6 +73,15 @@ resetPassword = async (req, res) => {
 };
 
 resetEmail = async (req, res) => {
+  const schema = Joi.object({
+    email: Joi.string().email().required(),
+  });
+  try {
+    await schema.validate({ email: req.body.email });
+  } catch (err) {
+    return res.redirect("/resetEmail");
+  }
+
   const db = Connection.db;
   const users = db.collection("users");
   try {
@@ -86,6 +105,15 @@ resetEmail = async (req, res) => {
 };
 
 forgotPassword = async (req, res) => {
+  const schema = Joi.object({
+    email: Joi.string().email().required(),
+  });
+  try {
+    await schema.validate({ email: req.body.email });
+  } catch (err) {
+    return res.redirect("/forgotPassword");
+  }
+
   const db = Connection.db;
   const users = db.collection("users");
   try {
@@ -126,6 +154,19 @@ forgotPassword = async (req, res) => {
 };
 
 newPassword = async (req, res) => {
+  const schema = Joi.object({
+    password: Joi.string().required(),
+    repeat_password: Joi.ref("password"),
+  });
+  try {
+    await schema.validate({
+      password: req.body.password,
+      repeat_password: req.body.confirmPassword,
+    });
+  } catch (err) {
+    return res.redirect("/newPassword?token=" + req.body.token);
+  }
+
   const db = Connection.db;
   const tokens = db.collection("tokens");
   try {

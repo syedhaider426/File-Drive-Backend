@@ -1,7 +1,6 @@
 const bcrypt = require("bcrypt");
 const Connection = require("../database/Connection");
 const crypto = require("crypto");
-
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
 const Joi = require("@hapi/joi");
