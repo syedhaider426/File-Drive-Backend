@@ -76,4 +76,9 @@ module.exports = (app) => {
               </form>
             `);
   });
+  app.get("/error", (req, res) => {
+    res.send(`
+            <h2>With <code>"Requested URL was not found"</code></h2>
+          `);
+  });
 };
