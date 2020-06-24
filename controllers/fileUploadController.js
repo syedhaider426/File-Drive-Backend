@@ -14,13 +14,13 @@ uploadFile = (req, res) => {
   });
   form.parse(req);
   form.once("end", () => {
-    // streaming to gridfs
-    let folderID = "";
-    if (req.params.folder) folderID = new mongodb.ObjectID(req.params.folder);
     var options = {
       metadata: {
         user: req.user._id,
-        folder: folderID,
+        lastUpdatedOn: new Date(),
+        folder: req.params.folder
+          ? new mongodb.ObjectID(req.params.folder)
+          : "",
       },
     };
     for (let i = 0; i < files.length; i++) {
@@ -40,14 +40,50 @@ getFiles = async (req, res) => {
   //https://stackoverflow.com/questions/16002659/how-to-query-nested-objects
   return files
     .find({
-      metadata: {
-        user: req.user._id,
-        folder: req.params.folder
-          ? new mongodb.ObjectID(req.params.folder)
-          : "",
-      },
+      "metadata.user": req.user._id,
+      "metadata.folder": req.params.folder
+        ? new mongodb.ObjectID(req.params.folder)
+        : "",
     })
     .toArray();
 };
 
-module.exports = { uploadFile, getFiles };
+moveFiles = async (req, res) => {
+  //Get file collection
+  const db = Connection.db;
+  const files = db.collection("fs.files");
+
+  const fileArray = [];
+  //searches for user and file in files
+  if (typeof req.body.files === "string")
+    fileArray.push(new mongodb.ObjectID(req.body.files));
+  else
+    req.body.files.forEach((file) => {
+      fileArray.push(new mongodb.ObjectID(file));
+    });
+  // Need current user, folder, file
+  // Need folder
+  const file = files
+    .update(
+      {
+        _id: { $in: fileArray },
+        "metadata.user": new mongodb.ObjectID(req.user._id),
+      },
+      {
+        $set: {
+          "metadata.folder": new mongodb.ObjectID(req.body.folder)
+            ? new mongodb.ObjectID(req.body.folder)
+            : "",
+        },
+      }
+    )
+    .toArray()
+    .then((res) => {
+      if (!res) return res.redirect("/home");
+      return res.redirect("/viewFolders");
+    });
+
+  //updates the folder field
+};
+
+module.exports = { uploadFile, getFiles, moveFiles };

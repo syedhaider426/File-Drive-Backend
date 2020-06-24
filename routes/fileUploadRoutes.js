@@ -1,5 +1,8 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
-const { uploadFile } = require("../controllers/fileUploadController");
+const {
+  uploadFile,
+  moveFiles,
+} = require("../controllers/fileUploadController");
 const checkFolderExists = require("../middlewares/checkFolderExists");
 module.exports = (app) => {
   app.post("/api/upload", checkAuthenticated, uploadFile);
@@ -10,4 +13,6 @@ module.exports = (app) => {
     checkFolderExists,
     uploadFile
   );
+
+  app.post("/moveFiles", checkAuthenticated, moveFiles);
 };
