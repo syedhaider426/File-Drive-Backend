@@ -79,6 +79,15 @@ module.exports = function (app) {
               </form>
             `);
   });
+  app.get("/verificationEmail", (req, res) => {
+    res.send(`
+              <h2>With <code>"Send Email to Confirm User"</code></h2>
+              <form action="/resendEmailVerification" method="post" name="resendEmailVerification">
+                <div><label class="email">Current Email:</label><input type="text" name="email" /></div>     
+                <button type="submit" value="Confirm">Confirm</button>
+              </form>
+            `);
+  });
   app.get("/forgotPassword", (req, res) => {
     res.send(`
               <h2>With <code>"Send Email to Change Password"</code></h2>
