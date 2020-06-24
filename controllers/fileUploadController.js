@@ -1,9 +1,9 @@
 const Connection = require("../database/Connection");
 const formidable = require("formidable");
 const fs = require("fs");
-const mongodb = require("mongodb");
+const returnObjectID = require("../database/returnObjectID");
+
 uploadFile = (req, res) => {
-  const db = Connection.db;
   const gfs = Connection.gfs;
   //Pass in an array of files
   const form = new formidable.IncomingForm();
@@ -18,9 +18,7 @@ uploadFile = (req, res) => {
       metadata: {
         user: req.user._id,
         lastUpdatedOn: new Date(),
-        folder: req.params.folder
-          ? new mongodb.ObjectID(req.params.folder)
-          : "",
+        folder: req.params.folder ? returnObjectID(req.params.folder) : "",
       },
     };
     for (let i = 0; i < files.length; i++) {
@@ -42,7 +40,7 @@ getFiles = async (req, res) => {
     .find({
       "metadata.user": req.user._id,
       "metadata.folder": req.params.folder
-        ? new mongodb.ObjectID(req.params.folder)
+        ? returnObjectID(req.params.folder)
         : "",
     })
     .toArray();
@@ -56,10 +54,10 @@ moveFiles = async (req, res) => {
   const fileArray = [];
   //searches for user and file in files
   if (typeof req.body.files === "string")
-    fileArray.push(new mongodb.ObjectID(req.body.files));
+    fileArray.push(returnObjectID(req.body.files));
   else
     req.body.files.forEach((file) => {
-      fileArray.push(new mongodb.ObjectID(file));
+      fileArray.push(returnObjectID(file));
     });
   // Need current user, folder, file
   // Need folder
@@ -67,12 +65,50 @@ moveFiles = async (req, res) => {
     .update(
       {
         _id: { $in: fileArray },
-        "metadata.user": new mongodb.ObjectID(req.user._id),
+        "metadata.user": returnObjectID(req.user._id),
       },
       {
         $set: {
-          "metadata.folder": new mongodb.ObjectID(req.body.folder)
-            ? new mongodb.ObjectID(req.body.folder)
+          "metadata.folder": returnObjectID(req.body.folder)
+            ? returnObjectID(req.body.folder)
+            : "",
+        },
+      }
+    )
+    .toArray()
+    .then((res) => {
+      if (!res) return res.redirect("/home");
+      return res.redirect("/viewFolders");
+    });
+
+  //updates the folder field
+};
+
+deleteFiles = async (req, res) => {
+  //Get file collection
+  const db = Connection.db;
+  const files = db.collection("fs.files");
+
+  const fileArray = [];
+  //searches for user and file in files
+  if (typeof req.body.files === "string")
+    fileArray.push(returnObjectID(req.body.files));
+  else
+    req.body.files.forEach((file) => {
+      fileArray.push(returnObjectID(file));
+    });
+  // Need current user, folder, file
+  // Need folder
+  const file = files
+    .deleteMany(
+      {
+        _id: { $in: fileArray },
+        "metadata.user": returnObjectID(req.user._id),
+      },
+      {
+        $set: {
+          "metadata.folder": returnObjectID(req.body.folder)
+            ? returnObjectID(req.body.folder)
             : "",
         },
       }
