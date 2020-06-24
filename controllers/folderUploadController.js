@@ -1,4 +1,5 @@
 const Connection = require("../database/Connection");
+const Joi = require("@hapi/joi");
 
 createFolder = async (req, res) => {
   const schema = Joi.object({
@@ -13,14 +14,14 @@ createFolder = async (req, res) => {
   const db = Connection.db;
   const folders = db.collection("folders");
   const folder = {
-    UserID: "",
+    UserID: req.user._id,
     ParentID: "",
     Title: req.body.title,
     Description: "",
     CreatedOn: new Date(),
-    LastUpdatedOn: new Date(),
+    LastUpdatedOn: req.user.email,
     CreatedBy: new Date(),
-    LastUpdatedBy: new Date(),
+    LastUpdatedBy: req.user.email,
   };
   try {
     const result = await folders.insertOne(folder);
@@ -32,4 +33,12 @@ createFolder = async (req, res) => {
   }
 };
 
-module.exports = createFolder;
+getFolders = (req, res) => {
+  const db = Connection.db;
+  const folders = db.collection("folders");
+  // Without a callback, toArray() returns a Promise.
+  // Because our functionOne is an "async" function, you do not need "await" for the return value.
+  return folders.find({ UserID: req.user._id }).toArray();
+};
+
+module.exports = { createFolder, getFolders };

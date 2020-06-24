@@ -3,7 +3,7 @@ const {
   checkNotAuthenticated,
 } = require("../middlewares/requireLogin");
 
-module.exports = function (app) {
+module.exports = (app) => {
   app.get("/home", checkAuthenticated, (req, res) => {
     res.send(`
           <h2>With <code>"File Upload"</code></h2>
@@ -12,7 +12,8 @@ module.exports = function (app) {
             <div><label class="File">File:</label> <input type="file" name="someExpressFiles" multiple="multiple" /></div>
             <input type="submit" value="Upload" />
           </form>
-
+          <div>
+            <a href="/viewFolders">View Folders</a></div>
           <div>
             <a href="/accountSettings">Account Settings</a>
           </div>

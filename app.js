@@ -14,6 +14,7 @@ require("./routes/registerRoutes")(app);
 require("./routes/accountSettingRoutes")(app);
 require("./pages/mainPages")(app);
 require("./pages/accountSettingsPages")(app);
+require("./pages/folderPages")(app);
 app.use((req, res) => {
   return res.status(404).send({ url: req.originalUrl + " could not be found" });
 });
