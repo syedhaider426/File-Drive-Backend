@@ -12,7 +12,8 @@ require("./routes/fileUploadRoutes")(app);
 require("./routes/folderUploadRoutes")(app);
 require("./routes/registerRoutes")(app);
 require("./routes/accountSettingRoutes")(app);
-require("./pages/pages")(app);
+require("./pages/mainPages")(app);
+require("./pages/accountSettingsPages")(app);
 app.use((req, res) => {
   return res.status(404).send({ url: req.originalUrl + " could not be found" });
 });
