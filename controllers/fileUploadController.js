@@ -99,7 +99,7 @@ deleteFiles = async (req, res) => {
     });
   // Need current user, folder, file
   // Need folder
-  const file = files
+  files
     .deleteMany(
       {
         _id: { $in: fileArray },
