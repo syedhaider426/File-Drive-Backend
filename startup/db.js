@@ -1,14 +1,14 @@
-const mongoose = require("mongoose");
-const keys = require("../config/keys");
-const db = keys.db;
+const Connection = require("../database/Connection");
 
-module.exports = function () {
-  mongoose.connect(
-    db,
-    {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    },
-    () => console.log("Connected to DB")
-  );
+//Use connect method to connect to the server
+//https://stackoverflow.com/questions/49397608/what-is-best-way-to-handle-global-connection-of-mongodb-in-nodejs
+module.exports = (app) => {
+  (async () => {
+    try {
+      await Connection.connectToMongo();
+    } catch (err) {
+      console.log("Unable to connect to DB");
+      process.exit(-1);
+    }
+  })();
 };
