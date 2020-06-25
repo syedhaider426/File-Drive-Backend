@@ -88,7 +88,7 @@ deleteFiles = async (req, res) => {
   //Get file collection
   const db = Connection.db;
   const files = db.collection("fs.files");
-
+  const chunks = db.collection("fs.chunks");
   const fileArray = [];
   //searches for user and file in files
   if (typeof req.body.files === "string")
@@ -99,27 +99,15 @@ deleteFiles = async (req, res) => {
     });
   // Need current user, folder, file
   // Need folder
-  files
-    .deleteMany(
-      {
-        _id: { $in: fileArray },
-        "metadata.user": returnObjectID(req.user._id),
-      },
-      {
-        $set: {
-          "metadata.folder": returnObjectID(req.body.folder)
-            ? returnObjectID(req.body.folder)
-            : "",
-        },
-      }
-    )
-    .toArray()
-    .then((res) => {
-      if (!res) return res.redirect("/home");
-      return res.redirect("/viewFolders");
-    });
-
-  //updates the folder field
+  await files.deleteMany({
+    _id: { $in: fileArray },
+    "metadata.user": returnObjectID(req.user._id),
+    "metadata.folder": returnObjectID(req.body.folder)
+      ? returnObjectID(req.body.folder)
+      : "",
+  });
+  await chunks.deleteMany({ files_id: { $in: fileArray } });
+  res.redirect("/viewFolders");
 };
 
 module.exports = { uploadFile, getFiles, moveFiles };
