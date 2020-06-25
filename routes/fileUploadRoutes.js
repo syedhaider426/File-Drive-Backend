@@ -3,6 +3,7 @@ const {
   uploadFile,
   moveFiles,
   deleteFiles,
+  renameFile,
 } = require("../controllers/fileController");
 const checkFolderExists = require("../middlewares/checkFolderExists");
 module.exports = (app) => {
@@ -18,4 +19,6 @@ module.exports = (app) => {
   app.post("/moveFiles", checkAuthenticated, moveFiles);
 
   app.post("/deleteFiles", checkAuthenticated, deleteFiles);
+
+  app.post("/renameFile", checkAuthenticated, renameFile);
 };

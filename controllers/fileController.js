@@ -93,12 +93,12 @@ moveFiles = async (req, res) => {
 };
 
 /* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
+/* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
+/* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
 deleteFiles = async (req, res) => {
   //Get file collection
   const db = Connection.db;
   const files = db.collection("fs.files");
-  const chunks = db.collection("fs.chunks");
-  const gfs = Connection.gfs;
   let fileArray = [];
   //searches for user and file in files
   if (typeof req.body.files === "string")
@@ -120,20 +120,28 @@ deleteFiles = async (req, res) => {
         _id: 1,
       })
       .toArray();
-    let userFileArray = [];
-    f.forEach((file) => {
-      userFileArray.push(file._id);
+    f.map(async (file) => {
+      await gfs.delete(file._id);
     });
-    const result = await Promise.all(
-      f.map(async (file) => {
-        await gfs.delete(file._id);
-      })
-    );
-    if (!result) res.redirect("/error");
     res.redirect("/viewFolders");
   } catch (err) {
     console.log(err);
   }
 };
 
-module.exports = { uploadFile, getFiles, moveFiles, deleteFiles };
+renameFile = async (req, res) => {
+  const files = Connection.db.collection("fs.files");
+  const result = await files.updatOne(
+    {
+      _id: req.body.fileID,
+      "metadata.user": req.user._id,
+    },
+    {
+      $set: { filename: req.body.newName },
+    }
+  );
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+module.exports = { uploadFile, getFiles, moveFiles, deleteFiles, renameFile };
