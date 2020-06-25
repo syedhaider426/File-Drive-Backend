@@ -14,7 +14,7 @@ uploadFile = (req, res) => {
   });
   form.parse(req);
   form.once("end", () => {
-    var options = {
+    let options = {
       metadata: {
         user: req.user._id,
         lastUpdatedOn: new Date(),
@@ -144,4 +144,32 @@ renameFile = async (req, res) => {
   return res.redirect("/viewFolders");
 };
 
-module.exports = { uploadFile, getFiles, moveFiles, deleteFiles, renameFile };
+copyFile = (req, res) => {
+  const gfs = Connection.gfs;
+  let options = {
+    metadata: {
+      user: req.user._id,
+      lastUpdatedOn: new Date(),
+      folder: req.body.folder ? returnObjectID(req.body.folder) : "",
+    },
+  };
+  let downloadStream = gfs.openDownloadStream(returnObjectID(req.body.fileID));
+  let writeStream = gfs.openUploadStream(
+    `Copy of ${req.body.fileName}`,
+    options
+  );
+  downloadStream.pipe(writeStream).once("finish", () => {
+    console.log("finished");
+    res.redirect("/viewFolders");
+  });
+  //fs.createReadStream(paths[i]).pipe(writestream);
+};
+
+module.exports = {
+  uploadFile,
+  getFiles,
+  moveFiles,
+  deleteFiles,
+  renameFile,
+  copyFile,
+};

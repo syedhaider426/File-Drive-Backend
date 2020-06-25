@@ -44,7 +44,7 @@ module.exports = (app) => {
       } else {
         for (let x = 0; x < files.length; ++x) {
           htmlString +=
-            `<form action="/moveFiles" method="post" name="Login">
+            `<form action="/moveFiles" method="post" name="MoveFile">
           <input type="hidden" name="files" value=${files[x]._id}>
           <label>${files[x].filename}</label>
         ` +
@@ -52,18 +52,25 @@ module.exports = (app) => {
             `
           <button id="move" type="submit" disabled value="Move File">Move File</button>
         </form>
-        <form action="/deleteFiles" method="post" name="Login">
+        <form action="/deleteFiles" method="post" name="DeleteFile">
           <input type="hidden" name="files" value=${files[x]._id}>
           <label>${files[x].filename}</label>
           <button id="delete" type="submit" value="Delete File">Delete File</button>
         </form>
-        <form action="/renameFile" method="post" name="Login">
+        <form action="/renameFile" method="post" name="RenameFile">
           <input type="text" name="newName">
           <input type="hidden" name="files" value=${files[x]._id}>
           <input type="hidden" name="currentName" value=${files[x].filename}>
           <label>${files[x].filename}</label>
         <button id="rename" type="submit" value="Rename File">Rename File</button>
       </form>
+      <form action="/copyFile" method="post" name="Copy">
+      <input type="hidden" name="fileID" value=${files[x]._id}>
+      <input type="hidden" name="fileName" value=${files[x].filename}>
+      <input type="hidden" name="folder" value=${req.params.folder}>
+      <label>${files[x].filename}</label>
+    <button id="copy" type="submit" value="Copy File">Copy File</button>
+  </form>
          </div>
          </br>
          </br>
