@@ -36,14 +36,18 @@ getFiles = async (req, res) => {
   // Without a callback, toArray() returns a Promise.
   // Because our functionOne is an "async" function, you do not need "await" for the return value.
   //https://stackoverflow.com/questions/16002659/how-to-query-nested-objects
-  return files
-    .find({
-      "metadata.user": req.user._id,
-      "metadata.folder": req.params.folder
-        ? returnObjectID(req.params.folder)
-        : "",
-    })
-    .toArray();
+  try {
+    return await files
+      .find({
+        "metadata.user": req.user._id,
+        "metadata.folder": req.params.folder
+          ? returnObjectID(req.params.folder)
+          : "",
+      })
+      .toArray();
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 moveFiles = async (req, res) => {
@@ -61,35 +65,41 @@ moveFiles = async (req, res) => {
     });
   // Need current user, folder, file
   // Need folder
-  const file = files
-    .update(
-      {
-        _id: { $in: fileArray },
-        "metadata.user": returnObjectID(req.user._id),
-      },
-      {
-        $set: {
-          "metadata.folder": returnObjectID(req.body.folder)
-            ? returnObjectID(req.body.folder)
-            : "",
+  try {
+    const file = files
+      .update(
+        {
+          _id: { $in: fileArray },
+          "metadata.user": returnObjectID(req.user._id),
         },
-      }
-    )
-    .toArray()
-    .then((res) => {
-      if (!res) return res.redirect("/home");
-      return res.redirect("/viewFolders");
-    });
+        {
+          $set: {
+            "metadata.folder": returnObjectID(req.body.folder)
+              ? returnObjectID(req.body.folder)
+              : "",
+          },
+        }
+      )
+      .toArray()
+      .then((res) => {
+        if (!res) return res.redirect("/home");
+        return res.redirect("/viewFolders");
+      });
+  } catch (err) {
+    console.log(err);
+  }
 
   //updates the folder field
 };
 
+/* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
 deleteFiles = async (req, res) => {
   //Get file collection
   const db = Connection.db;
   const files = db.collection("fs.files");
   const chunks = db.collection("fs.chunks");
-  const fileArray = [];
+  const gfs = Connection.gfs;
+  let fileArray = [];
   //searches for user and file in files
   if (typeof req.body.files === "string")
     fileArray.push(returnObjectID(req.body.files));
@@ -99,15 +109,31 @@ deleteFiles = async (req, res) => {
     });
   // Need current user, folder, file
   // Need folder
-  await files.deleteMany({
-    _id: { $in: fileArray },
-    "metadata.user": returnObjectID(req.user._id),
-    "metadata.folder": returnObjectID(req.body.folder)
-      ? returnObjectID(req.body.folder)
-      : "",
-  });
-  await chunks.deleteMany({ files_id: { $in: fileArray } });
-  res.redirect("/viewFolders");
+
+  try {
+    const f = await files
+      .find({
+        _id: { $in: fileArray },
+        "metadata.user": returnObjectID(req.user._id),
+      })
+      .project({
+        _id: 1,
+      })
+      .toArray();
+    let userFileArray = [];
+    f.forEach((file) => {
+      userFileArray.push(file._id);
+    });
+    const result = await Promise.all(
+      f.map(async (file) => {
+        await gfs.delete(file._id);
+      })
+    );
+    if (!result) res.redirect("/error");
+    res.redirect("/viewFolders");
+  } catch (err) {
+    console.log(err);
+  }
 };
 
-module.exports = { uploadFile, getFiles, moveFiles };
+module.exports = { uploadFile, getFiles, moveFiles, deleteFiles };

@@ -3,7 +3,7 @@ const Joi = require("@hapi/joi");
 const {
   getUserById,
   getUserByEmail,
-} = require("../controllers/userController");
+} = require("../controllers/userSettingsController");
 
 const user = {
   serialize: (user, done) => {
