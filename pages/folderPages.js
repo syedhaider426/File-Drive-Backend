@@ -1,7 +1,7 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
 const checkFolderExists = require("../middlewares/checkFolderExists");
-const { getFolders } = require("../controllers/folderUploadController");
-const { getFiles } = require("../controllers/fileUploadController");
+const { getFolders } = require("../controllers/folderController");
+const { getFiles } = require("../controllers/fileController");
 module.exports = (app) => {
   app.get("/viewFolders", checkAuthenticated, async (req, res) => {
     const folders = await getFolders(req, res);
@@ -52,6 +52,11 @@ module.exports = (app) => {
             folderString +
             `
           <button id="move" type="submit" disabled value="Move File">Move File</button>
+        </form>
+        <form action="/deleteFiles" method="post" name="Login">
+          <input type="hidden" name="files" value=${files[x]._id}>
+          <label>${files[x].filename}</label>
+          <button id="delete" type="submit" value="Delete File">Delete File</button>
         </form>
          </div>
          </br>

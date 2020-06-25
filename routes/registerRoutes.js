@@ -3,7 +3,7 @@ const {
   register,
   confirmUser,
   resendVerificationEmail,
-} = require("../controllers/registerController");
+} = require("../controllers/registerUserController");
 const checkToken = require("../middlewares/requireToken");
 
 module.exports = (app) => {

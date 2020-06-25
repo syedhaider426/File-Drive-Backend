@@ -4,7 +4,7 @@ const {
   resetPassword,
   forgotPassword,
   newPassword,
-} = require("../controllers/userController");
+} = require("../controllers/userSettingsController");
 
 module.exports = (app) => {
   app.post("/resetPassword", checkAuthenticated, resetPassword);
