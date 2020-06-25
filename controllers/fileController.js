@@ -162,7 +162,6 @@ copyFile = (req, res) => {
     console.log("finished");
     res.redirect("/viewFolders");
   });
-  //fs.createReadStream(paths[i]).pipe(writestream);
 };
 
 module.exports = {

@@ -57,4 +57,20 @@ renameFolder = async (req, res) => {
   return res.redirect("/viewFolders");
 };
 
-module.exports = { createFolder, getFolders, renameFolder };
+moveFolder = async (req, res) => {
+  const folders = Connection.db.collection("folders");
+  const result = await folders.updateOne(
+    {
+      _id: returnObjectID(req.body.folderID),
+      UserID: returnObjectID(req.user._id),
+    },
+    {
+      $set: { ParentID: returnObjectID(req.body.moveFolder) },
+    }
+  );
+  console.log(result);
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+module.exports = { createFolder, getFolders, renameFolder, moveFolder };

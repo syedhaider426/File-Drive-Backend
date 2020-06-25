@@ -5,8 +5,15 @@ const { getFiles } = require("../controllers/fileController");
 module.exports = (app) => {
   app.get("/viewFolders", checkAuthenticated, async (req, res) => {
     const folders = await getFolders(req, res);
-    var htmlString = "";
 
+    /********* */
+    var folderString = `<select name="moveFolder">`;
+    for (let j = 0; j < folders.length; ++j) {
+      folderString += `<option value=${folders[j]._id}>${folders[j].Title}</option>`;
+    }
+    folderString += `</select>`;
+    /********* */
+    var htmlString = "";
     for (let x = 0; x < folders.length; x++) {
       htmlString += `<div>
         <label>Title - <a href="/folder/${folders[x]._id}">${folders[x].Title}</a></label>
@@ -17,6 +24,14 @@ module.exports = (app) => {
         <input type="hidden" name="folderID" value=${folders[x]._id}>
       <button id="renameFolder" type="submit" value="Rename Folder">Rename Folder</button>
     </form>`;
+      htmlString +=
+        `  <form action="/moveFolder" method="post" name="MoveFolder">
+    <input type="hidden" name="folderID" value=${folders[x]._id}>
+    ` +
+        folderString +
+        `
+  <button id="moveFolder" type="submit" value="Move Folder">Move Folder</button>
+</form>`;
     }
 
     res.send(htmlString);
@@ -32,7 +47,7 @@ module.exports = (app) => {
       const folders = await getFolders(req, res);
 
       /****************** */
-      var folderString = `<select name="folder" onChange='document.getElementById("move").disabled = false'>"`;
+      var folderString = `<select name="folder">`;
       for (let j = 0; j < folders.length; ++j) {
         folderString += `<option value=${folders[j]._id}>${folders[j].Title}</option>`;
       }
