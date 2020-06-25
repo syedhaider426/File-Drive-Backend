@@ -1,5 +1,6 @@
 const Connection = require("../database/Connection");
 const Joi = require("@hapi/joi");
+const returnObjectID = require("../database/returnObjectID");
 
 createFolder = async (req, res) => {
   const schema = Joi.object({
@@ -41,4 +42,19 @@ getFolders = (req, res) => {
   return folders.find({ UserID: req.user._id }).toArray();
 };
 
-module.exports = { createFolder, getFolders };
+renameFolder = async (req, res) => {
+  const folders = Connection.db.collection("folders");
+  const result = await folders.updateOne(
+    {
+      _id: returnObjectID(req.body.folderID),
+      UserID: returnObjectID(req.user._id),
+    },
+    {
+      $set: { Title: req.body.folder },
+    }
+  );
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+module.exports = { createFolder, getFolders, renameFolder };

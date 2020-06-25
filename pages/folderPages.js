@@ -10,16 +10,15 @@ module.exports = (app) => {
     for (let x = 0; x < folders.length; x++) {
       htmlString += `<div>
         <label>Title - <a href="/folder/${folders[x]._id}">${folders[x].Title}</a></label>
-         </div>
-         </br>
-         </br>
+
         `;
-    }
-    htmlString += ` <h2>With <code>"Create Folder"</code></h2>
-    <form action="/createFolder" method="post" name="createFolder">
-      <div><label >Folder: </label><input type="text" name="title" /></div>
-      <button type="submit" value="Confirm">Confirm</button>
+      htmlString += `  <form action="/renameFolder" method="post" name="Login">
+        <input type="text" name="folder">
+        <input type="hidden" name="folderID" value=${folders[x]._id}>
+      <button id="renameFolder" type="submit" value="Rename Folder">Rename Folder</button>
     </form>`;
+    }
+
     res.send(htmlString);
   });
 
@@ -59,10 +58,10 @@ module.exports = (app) => {
           <button id="delete" type="submit" value="Delete File">Delete File</button>
         </form>
         <form action="/renameFile" method="post" name="Login">
-        <input type="text" name="newName">
-        <input type="hidden" name="files" value=${files[x]._id}>
-        <input type="hidden" name="currentName" value=${files[x].filename}>
-        <label>${files[x].filename}</label>
+          <input type="text" name="newName">
+          <input type="hidden" name="files" value=${files[x]._id}>
+          <input type="hidden" name="currentName" value=${files[x].filename}>
+          <label>${files[x].filename}</label>
         <button id="rename" type="submit" value="Rename File">Rename File</button>
       </form>
          </div>
