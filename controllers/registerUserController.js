@@ -1,9 +1,10 @@
 const bcrypt = require("bcrypt");
 const Connection = require("../database/Connection");
-const crypto = require("crypto");
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
 const Joi = require("@hapi/joi");
+const jwt = require("jsonwebtoken");
+const returnObjectID = require("../database/returnObjectID");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
 exports.register = async (req, res) => {
@@ -41,14 +42,11 @@ exports.register = async (req, res) => {
       isVerified: false,
     };
     let result = await users.insertOne(user);
-    const newUserID = result.insertedId;
-    const token = {
-      userID: newUserID,
-      path: "/confirmRegistration",
-      token: crypto.randomBytes(16).toString("hex"),
-      createdAt: new Date(),
-    };
-    await db.collection("tokens").insertOne(token);
+    const token = await jwt.sign(
+      { id: result.insertedId },
+      keys.jwtPrivateKey,
+      { expiresIn: "1h" }
+    );
     let mailOptions = {
       from: keys.email,
       to: req.body.email,
@@ -58,7 +56,7 @@ exports.register = async (req, res) => {
         "Please verify your account by clicking the link: \nhttp://" +
         req.headers.host +
         "/confirmRegistration?token=" +
-        token.token +
+        token +
         "\n",
     };
     await sgMail.send(mailOptions);
@@ -71,13 +69,14 @@ exports.register = async (req, res) => {
 
 exports.confirmUser = async (req, res) => {
   const db = Connection.db;
-  const tokens = db.collection("tokens");
+  const users = db.collection("users");
+
   try {
-    const result = await tokens.findOne({ token: req.query.token });
-    if (!result) res.redirect("/register");
-    const users = db.collection("users");
+    const result = await jwt.verify(req.query.token, keys.jwtPrivateKey);
+    if (!result) res.redirect("/verificationEmail");
+
     await users.updateOne(
-      { _id: result.userID },
+      { _id: returnObjectID(result.id) },
       { $set: { isVerified: true } }
     );
     return res.redirect("/confirmationSuccess");
@@ -95,6 +94,7 @@ exports.resendVerificationEmail = async (req, res) => {
   } catch (err) {
     return res.redirect("/forgotPassword");
   }
+
   const db = Connection.db;
   const users = db.collection("users");
   try {
@@ -102,20 +102,15 @@ exports.resendVerificationEmail = async (req, res) => {
       { email: req.body.email },
       {
         projection: {
-          email: 1,
           isVerified: 1,
         },
       }
     );
     if (!user) return res.redirect("/forgotPassword");
     if (user.isVerified) return res.redirect("/confirmationSuccess");
-    const token = {
-      userID: user._id,
-      path: "/newPassword",
-      token: crypto.randomBytes(16).toString("hex"),
-      createdAt: new Date(),
-    };
-    await db.collection("tokens").insertOne(token);
+    const token = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
+      expiresIn: "1h",
+    });
     let mailOptions = {
       from: keys.email,
       to: req.body.email,
@@ -125,10 +120,12 @@ exports.resendVerificationEmail = async (req, res) => {
         "Please verify your account by clicking the link: \nhttp://" +
         req.headers.host +
         "/confirmRegistration?token=" +
-        token.token +
+        token +
         "\n",
     };
-    await sgMail.send(mailOptions);
+    console.log("Send");
+    const t = await sgMail.send(mailOptions);
+    console.log(t);
     return res.redirect("/verification");
   } catch (err) {
     console.error(err);

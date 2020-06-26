@@ -4,4 +4,5 @@ module.exports = {
   passportKey: process.env.PASSPORTKEY,
   email: process.env.EMAIL,
   sendgrid_api_key: process.env.SENDGRID_API_KEY,
+  jwtPrivateKey: process.env.JWT_PRIVATEKEY,
 };

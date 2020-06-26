@@ -1,7 +1,7 @@
 const Connection = require("../database/Connection");
 const mongodb = require("mongodb");
 const bcrypt = require("bcrypt");
-const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const Joi = require("@hapi/joi");
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
@@ -120,12 +120,9 @@ exports.forgotPassword = async (req, res) => {
       }
     );
     if (!user) res.redirect("/forgotPassword");
-    const token = {
-      userID: user._id,
-      path: "/newPassword",
-      token: crypto.randomBytes(16).toString("hex"),
-      createdAt: new Date(),
-    };
+    const token = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
+      expiresIn: "1h",
+    });
     await db.collection("tokens").insertOne(token);
     let mailOptions = {
       from: keys.email,
@@ -160,23 +157,10 @@ exports.newPassword = async (req, res) => {
   } catch (err) {
     return res.redirect("/newPassword?token=" + req.body.token);
   }
-
-  const db = Connection.db;
-  const tokens = db.collection("tokens");
+  const user = await jwt.verify(req.body.token, keys.jwtPrivateKey);
   try {
-    const user = await tokens.findOne({
-      token: req.body.token,
-      path: req.path,
-    });
-    if (!user) res.redirect("/register");
-    const userID = user.userID;
-    const users = db.collection("users");
-    if (!req.body.password) return res.redirect("/register");
     const hash = await bcrypt.hash(req.body.password, 10);
-    const result = await users.updateOne(
-      { _id: userID },
-      { $set: { password: hash } }
-    );
+    await users.updateOne({ _id: user.id }, { $set: { password: hash } });
     return res.redirect("/passwordChangeSuccess");
   } catch (err) {
     console.error("Err", err);

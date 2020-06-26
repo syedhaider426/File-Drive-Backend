@@ -1,5 +1,5 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
-const checkToken = require("../middlewares/requireToken");
+
 const {
   resetEmail,
   resetPassword,
@@ -22,5 +22,5 @@ module.exports = (app) => {
   app.post("/forgotPassword", forgotPassword);
 
   // @route POST - Saves the user's new password if a valid token is provided.
-  app.post("/newPassword", checkToken, newPassword);
+  app.post("/newPassword", newPassword);
 };

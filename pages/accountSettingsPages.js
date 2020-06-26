@@ -1,5 +1,4 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
-const checkToken = require("../middlewares/requireToken");
 
 module.exports = (app) => {
   app.get("/accountSettings", checkAuthenticated, (req, res) => {
@@ -45,7 +44,7 @@ module.exports = (app) => {
                 </form>
               `);
   });
-  app.get("/newPassword", checkToken, (req, res) => {
+  app.get("/newPassword", (req, res) => {
     let token = req.query.token;
     res.send(`
                 <h2>With <code>"Reset Password"</code></h2>

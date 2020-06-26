@@ -67,6 +67,14 @@ module.exports = (app) => {
                   </div>
               `);
   });
+  app.get("/confirmationSuccess", (req, res) => {
+    res.send(`
+                <h2>With <code>"Verification"</code></h2>
+                  <div>
+                    Thank you for verifying your account.</label>
+                  </div>
+              `);
+  });
   app.get("/verificationEmail", (req, res) => {
     res.send(`
               <h2>With <code>"Send Email to Confirm User"</code></h2>

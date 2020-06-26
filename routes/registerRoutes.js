@@ -4,7 +4,6 @@ const {
   confirmUser,
   resendVerificationEmail,
 } = require("../controllers/registerUserController");
-const checkToken = require("../middlewares/requireToken");
 const passport = require("passport");
 
 /**
@@ -16,7 +15,7 @@ module.exports = (app) => {
   app.post("/register", checkNotAuthenticated, register);
 
   // @route GET - Verifies the user's email if they provide the token that is sent to their email.
-  app.get("/confirmRegistration", checkToken, confirmUser);
+  app.get("/confirmRegistration", confirmUser);
 
   // @route POST - Resends an confirmation email to user if they did not their confirm their account.
   app.post("/resendEmailVerification", resendVerificationEmail);
