@@ -44,9 +44,7 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     return res.redirect("/resetPassword");
   }
-
-  const db = Connection.db;
-  const users = db.collection("users");
+  const users = Connection.db.collection("users");
   try {
     const user = await users.findOne(
       { _id: req.user._id },
@@ -62,10 +60,7 @@ exports.resetPassword = async (req, res) => {
     );
     if (!currentPassword) return res.redirect("/resetPassword");
     const hash = await bcrypt.hash(req.body.password, 10);
-    const result = await users.updateOne(
-      { _id: user._id },
-      { $set: { password: hash } }
-    );
+    await users.updateOne({ _id: user._id }, { $set: { password: hash } });
     return res.redirect("/home");
   } catch (err) {
     console.error(err);
@@ -82,8 +77,7 @@ exports.resetEmail = async (req, res) => {
     return res.redirect("/resetEmail");
   }
 
-  const db = Connection.db;
-  const users = db.collection("users");
+  const users = Connection.db.collection("users");
   try {
     const foundEmail = await users.findOne(
       { email: req.body.newEmail },
@@ -94,7 +88,7 @@ exports.resetEmail = async (req, res) => {
       }
     );
     if (foundEmail) return res.redirect("/resetEmail");
-    const result = await users.updateOne(
+    await users.updateOne(
       { _id: req.user._id },
       { $set: { email: req.body.newEmail } }
     );

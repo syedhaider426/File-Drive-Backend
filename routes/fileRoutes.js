@@ -4,7 +4,7 @@ const {
   moveFiles,
   deleteFiles,
   renameFile,
-  copyFile,
+  copyFiles,
 } = require("../controllers/fileController");
 const checkFolderExists = require("../middlewares/checkFolderExists");
 
@@ -34,5 +34,5 @@ module.exports = (app) => {
   app.post("/renameFile", checkAuthenticated, renameFile);
 
   // @route POST - Copies a file if the user is authenticated.
-  app.post("/copyFile", checkAuthenticated, copyFile);
+  app.post("/copyFile", checkAuthenticated, copyFiles);
 };

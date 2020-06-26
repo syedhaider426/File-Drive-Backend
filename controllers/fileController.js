@@ -32,8 +32,7 @@ exports.uploadFile = (req, res) => {
 };
 
 exports.getFiles = async (req, res) => {
-  const db = Connection.db;
-  const files = db.collection("fs.files");
+  const files = Connection.db.collection("fs.files");
   // Without a callback, toArray() returns a Promise.
   // Because our functionOne is an "async" function, you do not need "await" for the return value.
   //https://stackoverflow.com/questions/16002659/how-to-query-nested-objects
@@ -86,9 +85,6 @@ exports.moveFiles = async (req, res) => {
 /* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
 /* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
 exports.deleteFiles = async (req, res) => {
-  //Get file collection
-  const db = Connection.db;
-  const files = db.collection("fs.files");
   let fileArray = [];
 
   req.body.files.forEach((file) => {
@@ -98,8 +94,8 @@ exports.deleteFiles = async (req, res) => {
   try {
     fileArray.map(async (file) => {
       await gfs.delete(file._id);
-      res.redirect("/viewFolders");
     });
+    res.redirect("/viewFolders");
   } catch (err) {
     console.log(err);
   }
@@ -115,7 +111,7 @@ exports.renameFile = async (req, res) => {
   return res.redirect("/viewFolders");
 };
 
-exports.copyFile = (req, res) => {
+exports.copyFiles = (req, res) => {
   const gfs = Connection.gfs;
   let fileArray = [];
   let filesSelectedLength = req.body.fileID.length;

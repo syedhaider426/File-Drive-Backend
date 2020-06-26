@@ -12,8 +12,7 @@ exports.createFolder = async (req, res) => {
     return res.redirect("/resetEmail");
   }
 
-  const db = Connection.db;
-  const folders = db.collection("folders");
+  const folders = Connection.db.collection("folders");
   const folder = {
     UserID: req.user._id,
     ParentID: "",
@@ -35,11 +34,10 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.getFolders = (req, res) => {
-  const db = Connection.db;
-  const folders = db.collection("folders");
+  const folders = Connection.db.collection("folders");
   // Without a callback, toArray() returns a Promise.
   // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  return folders.find({ UserID: req.user._id }).toArray();
+  return folders.find({ UserID: returnObjectID(req.user._id) }).toArray();
 };
 
 exports.renameFolder = async (req, res) => {
@@ -63,18 +61,14 @@ exports.renameFolder = async (req, res) => {
 exports.moveFolders = async (req, res) => {
   const folders = Connection.db.collection("folders");
   let folderArray = [];
-  //searches for user and file in files
-  if (typeof req.body.folderID === "string")
-    folderArray.push(returnObjectID(req.body.folderID));
-  else
-    req.body.folderID.forEach((folder) => {
-      folderArray.push(returnObjectID(folder));
-    });
+
+  req.body.folderID.forEach((folder) => {
+    folderArray.push(returnObjectID(folder));
+  });
   try {
     const result = await folders.updateOne(
       {
         _id: { $in: folderArray },
-        UserID: returnObjectID(req.user._id),
       },
       {
         $set: { ParentID: returnObjectID(req.body.moveFolder) },
@@ -92,12 +86,10 @@ exports.deleteFolders = async (req, res) => {
   const files = Connection.db.collection("files");
   let folderArray = [];
   //searches for user and file in files
-  if (typeof req.body.folderID === "string")
-    folderArray.push(returnObjectID(req.body.folderID));
-  else
-    req.body.folderID.forEach((folder) => {
-      folderArray.push(returnObjectID(folder));
-    });
+
+  req.body.folderID.forEach((folder) => {
+    folderArray.push(returnObjectID(folder));
+  });
   try {
     const f = await files
       .find({
