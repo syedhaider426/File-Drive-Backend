@@ -18,7 +18,7 @@ uploadFile = (req, res) => {
       metadata: {
         user: req.user._id,
         lastUpdatedOn: new Date(),
-        folder: req.params.folder ? returnObjectID(req.params.folder) : "",
+        folder: returnObjectID(req.params.folder),
       },
     };
     for (let i = 0; i < files.length; i++) {
@@ -40,9 +40,7 @@ getFiles = async (req, res) => {
     return await files
       .find({
         "metadata.user": req.user._id,
-        "metadata.folder": req.params.folder
-          ? returnObjectID(req.params.folder)
-          : "",
+        "metadata.folder": returnObjectID(req.params.folder),
       })
       .toArray();
   } catch (err) {
@@ -74,9 +72,7 @@ moveFiles = async (req, res) => {
         },
         {
           $set: {
-            "metadata.folder": returnObjectID(req.body.folder)
-              ? returnObjectID(req.body.folder)
-              : "",
+            "metadata.folder": returnObjectID(req.body.folder),
           },
         }
       )
@@ -150,7 +146,7 @@ copyFile = (req, res) => {
     metadata: {
       user: req.user._id,
       lastUpdatedOn: new Date(),
-      folder: req.body.folder ? returnObjectID(req.body.folder) : "",
+      folder: returnObjectID(req.body.folder),
     },
   };
   let downloadStream = gfs.openDownloadStream(returnObjectID(req.body.fileID));
