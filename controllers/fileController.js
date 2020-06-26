@@ -21,7 +21,8 @@ uploadFile = (req, res) => {
         folder: returnObjectID(req.params.folder),
       },
     };
-    for (let i = 0; i < files.length; i++) {
+    let filesLength = files.length;
+    for (let i = 0; i < filesLength; i++) {
       let writestream = gfs.openUploadStream(files[i], options);
       fs.createReadStream(paths[i]).pipe(writestream);
     }
@@ -54,13 +55,10 @@ moveFiles = async (req, res) => {
   const files = db.collection("fs.files");
 
   const fileArray = [];
-  //searches for user and file in files
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else
-    req.body.files.forEach((file) => {
-      fileArray.push(returnObjectID(file));
-    });
+
+  req.body.files.forEach((file) => {
+    fileArray.push(returnObjectID(file));
+  });
   // Need current user, folder, file
   // Need folder
   try {
@@ -96,13 +94,10 @@ deleteFiles = async (req, res) => {
   const db = Connection.db;
   const files = db.collection("fs.files");
   let fileArray = [];
-  //searches for user and file in files
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else
-    req.body.files.forEach((file) => {
-      fileArray.push(returnObjectID(file));
-    });
+
+  req.body.files.forEach((file) => {
+    fileArray.push(returnObjectID(file));
+  });
   // Need current user, folder, file
   // Need folder
 
@@ -142,6 +137,16 @@ renameFile = async (req, res) => {
 
 copyFile = (req, res) => {
   const gfs = Connection.gfs;
+  let fileArray = [];
+  let filesSelectedLength = req.body.fileID.length;
+
+  for (let i = 0; i < filesSelectedLength; ++i) {
+    fileArray.push({
+      id: returnObjectID(req.body.fileID[i]),
+      filename: req.body.fileName[i],
+    });
+  }
+
   let options = {
     metadata: {
       user: req.user._id,
@@ -149,14 +154,14 @@ copyFile = (req, res) => {
       folder: returnObjectID(req.body.folder),
     },
   };
-  let downloadStream = gfs.openDownloadStream(returnObjectID(req.body.fileID));
-  let writeStream = gfs.openUploadStream(
-    `Copy of ${req.body.fileName}`,
-    options
-  );
-  downloadStream.pipe(writeStream).once("finish", () => {
-    console.log("finished");
-    res.redirect("/viewFolders");
+  /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
+  fileArray.map((file) => {
+    let downloadStream = gfs.openDownloadStream(returnObjectID(file.id));
+    let writeStream = gfs.openUploadStream(`Copy of ${file.filename}`, options);
+    downloadStream.pipe(writeStream).once("finish", () => {
+      console.log("finished");
+      res.redirect("/viewFolders");
+    });
   });
 };
 
