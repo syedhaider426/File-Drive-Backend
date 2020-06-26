@@ -1,5 +1,5 @@
 const Connection = require("../database/Connection");
-const mongodb = require("mongodb");
+const createObjectID = require("../database/returnObjectID");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Joi = require("@hapi/joi");
@@ -12,27 +12,20 @@ sgMail.setApiKey(keys.sendgrid_api_key);
 // because you do not do/need any awaits inside the function.
 // toArray() without a callback function argument already returns a promise.
 exports.getUserByEmail = async (email) => {
-  const db = Connection.db;
-  const users = db.collection("users");
-
   // Without a callback, toArray() returns a Promise.
   // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  const result = await users.findOne({ email: email });
-  return result;
+  return await Connection.db.collection("users").findOne({ email: email });
 };
 
 exports.getUserById = async (id) => {
-  const db = Connection.db;
-  const users = db.collection("users");
-  const result = await users.findOne(
-    { _id: new mongodb.ObjectID(id) },
+  return await Connection.db.collection("users").findOne(
+    { _id: createObjectID(id) },
     {
       projection: {
         email: 1,
       },
     }
   );
-  return result;
 };
 
 exports.resetPassword = async (req, res) => {
@@ -44,8 +37,9 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     return res.redirect("/resetPassword");
   }
-  const users = Connection.db.collection("users");
+
   try {
+    const users = Connection.db.collection("users");
     const user = await users.findOne(
       { _id: req.user._id },
       {
@@ -77,9 +71,8 @@ exports.resetEmail = async (req, res) => {
     return res.redirect("/resetEmail");
   }
 
-  const users = Connection.db.collection("users");
   try {
-    const foundEmail = await users.findOne(
+    const foundEmail = await Connection.db.collection("users").findOne(
       { email: req.body.newEmail },
       {
         projection: {
@@ -108,10 +101,8 @@ exports.forgotPassword = async (req, res) => {
     return res.redirect("/forgotPassword");
   }
 
-  const db = Connection.db;
-  const users = db.collection("users");
   try {
-    const user = await users.findOne(
+    const user = await Connection.db.collection("users").findOne(
       { email: req.body.email },
       {
         projection: {
@@ -123,10 +114,9 @@ exports.forgotPassword = async (req, res) => {
     const token = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
       expiresIn: "1h",
     });
-    await db.collection("tokens").insertOne(token);
     let mailOptions = {
       from: keys.email,
-      to: "shayder426@gmail.com",
+      to: req.body.email,
       subject: "Forgotten Password - GDrive Clone",
       text:
         "Hello,\n\n" +
@@ -160,7 +150,9 @@ exports.newPassword = async (req, res) => {
   const user = await jwt.verify(req.body.token, keys.jwtPrivateKey);
   try {
     const hash = await bcrypt.hash(req.body.password, 10);
-    await users.updateOne({ _id: user.id }, { $set: { password: hash } });
+    await Connection.db
+      .collection("users")
+      .updateOne({ _id: user.id }, { $set: { password: hash } });
     return res.redirect("/passwordChangeSuccess");
   } catch (err) {
     console.error("Err", err);
