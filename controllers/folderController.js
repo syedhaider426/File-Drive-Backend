@@ -44,33 +44,71 @@ getFolders = (req, res) => {
 
 renameFolder = async (req, res) => {
   const folders = Connection.db.collection("folders");
-  const result = await folders.updateOne(
-    {
-      _id: returnObjectID(req.body.folderID),
-      UserID: returnObjectID(req.user._id),
-    },
-    {
-      $set: { Title: req.body.folder },
-    }
-  );
-  if (!result) return res.redirect("/error");
-  return res.redirect("/viewFolders");
+  try {
+    const result = await folders.updateOne(
+      {
+        _id: returnObjectID(req.body.folderID),
+        UserID: returnObjectID(req.user._id),
+      },
+      {
+        $set: { Title: req.body.folder },
+      }
+    );
+    if (!result) return res.redirect("/error");
+    return res.redirect("/viewFolders");
+  } catch (err) {
+    console.error("Err", err);
+  }
 };
 
 moveFolder = async (req, res) => {
   const folders = Connection.db.collection("folders");
-  const result = await folders.updateOne(
-    {
-      _id: returnObjectID(req.body.folderID),
-      UserID: returnObjectID(req.user._id),
-    },
-    {
-      $set: { ParentID: returnObjectID(req.body.moveFolder) },
-    }
-  );
-  console.log(result);
-  if (!result) return res.redirect("/error");
-  return res.redirect("/viewFolders");
+  try {
+    const result = await folders.updateOne(
+      {
+        _id: returnObjectID(req.body.folderID),
+        UserID: returnObjectID(req.user._id),
+      },
+      {
+        $set: { ParentID: returnObjectID(req.body.moveFolder) },
+      }
+    );
+    if (!result) return res.redirect("/error");
+    return res.redirect("/viewFolders");
+  } catch (err) {
+    console.error("Err", err);
+  }
 };
 
-module.exports = { createFolder, getFolders, renameFolder, moveFolder };
+deleteFolder = async (req, res) => {
+  const folders = Connection.db.collection("folders");
+  const files = Connection.db.collection("files");
+  try {
+    const f = await files
+      .find({
+        "metadata.folder": returnObjectID(req.body.folderID),
+      })
+      .project({
+        _id: 1,
+      })
+      .toArray();
+    f.map(async (file) => {
+      await gfs.delete(file._id);
+    });
+    const result = await folders.deleteOne({
+      _id: returnObjectID(req.body.folderID),
+    });
+    if (!result) return res.redirect("/error");
+    return res.redirect("/viewFolders");
+  } catch (err) {
+    console.error("Err", err);
+  }
+};
+
+module.exports = {
+  createFolder,
+  getFolders,
+  renameFolder,
+  moveFolder,
+  deleteFolder,
+};

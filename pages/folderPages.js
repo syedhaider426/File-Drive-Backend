@@ -24,6 +24,10 @@ module.exports = (app) => {
         <input type="hidden" name="folderID" value=${folders[x]._id}>
       <button id="renameFolder" type="submit" value="Rename Folder">Rename Folder</button>
     </form>`;
+      htmlString += `  <form action="/deleteFolder" method="post" name="DeleteFolder">
+    <input type="hidden" name="folderID" value=${folders[x]._id}>
+  <button id="deleteFolder" type="submit" value="Delete Folder">Delete Folder</button>
+</form>`;
       htmlString +=
         `  <form action="/moveFolder" method="post" name="MoveFolder">
     <input type="hidden" name="folderID" value=${folders[x]._id}>
