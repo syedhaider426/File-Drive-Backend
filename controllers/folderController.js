@@ -61,12 +61,20 @@ renameFolder = async (req, res) => {
   }
 };
 
-moveFolder = async (req, res) => {
+moveFolders = async (req, res) => {
   const folders = Connection.db.collection("folders");
+  let folderArray = [];
+  //searches for user and file in files
+  if (typeof req.body.folderID === "string")
+    folderArray.push(returnObjectID(req.body.folderID));
+  else
+    req.body.folderID.forEach((folder) => {
+      folderArray.push(returnObjectID(folder));
+    });
   try {
     const result = await folders.updateOne(
       {
-        _id: returnObjectID(req.body.folderID),
+        _id: { $in: folderArray },
         UserID: returnObjectID(req.user._id),
       },
       {
@@ -80,13 +88,21 @@ moveFolder = async (req, res) => {
   }
 };
 
-deleteFolder = async (req, res) => {
+deleteFolders = async (req, res) => {
   const folders = Connection.db.collection("folders");
   const files = Connection.db.collection("files");
+  let folderArray = [];
+  //searches for user and file in files
+  if (typeof req.body.folderID === "string")
+    folderArray.push(returnObjectID(req.body.folderID));
+  else
+    req.body.folderID.forEach((folder) => {
+      folderArray.push(returnObjectID(folder));
+    });
   try {
     const f = await files
       .find({
-        "metadata.folder": returnObjectID(req.body.folderID),
+        "metadata.folder": { $in: folderArray },
       })
       .project({
         _id: 1,
@@ -96,7 +112,7 @@ deleteFolder = async (req, res) => {
       await gfs.delete(file._id);
     });
     const result = await folders.deleteOne({
-      _id: returnObjectID(req.body.folderID),
+      _id: { $in: folderArray },
     });
     if (!result) return res.redirect("/error");
     return res.redirect("/viewFolders");
@@ -109,6 +125,6 @@ module.exports = {
   createFolder,
   getFolders,
   renameFolder,
-  moveFolder,
-  deleteFolder,
+  moveFolders,
+  deleteFolders,
 };
