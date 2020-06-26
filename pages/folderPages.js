@@ -78,7 +78,7 @@ module.exports = (app) => {
         </form>
         <form action="/renameFile" method="post" name="RenameFile">
           <input type="text" name="newName">
-          <input type="hidden" name="files" value=${files[x]._id}>
+          <input type="hidden" name="fileID" value=${files[x]._id}>
           <input type="hidden" name="currentName" value=${files[x].filename}>
           <label>${files[x].filename}</label>
         <button id="rename" type="submit" value="Rename File">Rename File</button>

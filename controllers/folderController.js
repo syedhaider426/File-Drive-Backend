@@ -2,7 +2,7 @@ const Connection = require("../database/Connection");
 const Joi = require("@hapi/joi");
 const returnObjectID = require("../database/returnObjectID");
 
-createFolder = async (req, res) => {
+exports.createFolder = async (req, res) => {
   const schema = Joi.object({
     folder: Joi.string().required(),
   });
@@ -34,7 +34,7 @@ createFolder = async (req, res) => {
   }
 };
 
-getFolders = (req, res) => {
+exports.getFolders = (req, res) => {
   const db = Connection.db;
   const folders = db.collection("folders");
   // Without a callback, toArray() returns a Promise.
@@ -42,13 +42,12 @@ getFolders = (req, res) => {
   return folders.find({ UserID: req.user._id }).toArray();
 };
 
-renameFolder = async (req, res) => {
+exports.renameFolder = async (req, res) => {
   const folders = Connection.db.collection("folders");
   try {
     const result = await folders.updateOne(
       {
         _id: returnObjectID(req.body.folderID),
-        UserID: returnObjectID(req.user._id),
       },
       {
         $set: { Title: req.body.folder },
@@ -61,7 +60,7 @@ renameFolder = async (req, res) => {
   }
 };
 
-moveFolders = async (req, res) => {
+exports.moveFolders = async (req, res) => {
   const folders = Connection.db.collection("folders");
   let folderArray = [];
   //searches for user and file in files
@@ -88,7 +87,7 @@ moveFolders = async (req, res) => {
   }
 };
 
-deleteFolders = async (req, res) => {
+exports.deleteFolders = async (req, res) => {
   const folders = Connection.db.collection("folders");
   const files = Connection.db.collection("files");
   let folderArray = [];
@@ -119,12 +118,4 @@ deleteFolders = async (req, res) => {
   } catch (err) {
     console.error("Err", err);
   }
-};
-
-module.exports = {
-  createFolder,
-  getFolders,
-  renameFolder,
-  moveFolders,
-  deleteFolders,
 };

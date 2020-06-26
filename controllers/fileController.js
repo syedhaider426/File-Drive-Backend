@@ -3,7 +3,7 @@ const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 
-uploadFile = (req, res) => {
+exports.uploadFile = (req, res) => {
   const gfs = Connection.gfs;
   //Pass in an array of files
   const form = new formidable.IncomingForm();
@@ -31,7 +31,7 @@ uploadFile = (req, res) => {
   });
 };
 
-getFiles = async (req, res) => {
+exports.getFiles = async (req, res) => {
   const db = Connection.db;
   const files = db.collection("fs.files");
   // Without a callback, toArray() returns a Promise.
@@ -40,7 +40,7 @@ getFiles = async (req, res) => {
   try {
     return await files
       .find({
-        "metadata.user": req.user._id,
+        "metadata.user": returnObjectID(req.user._id),
         "metadata.folder": returnObjectID(req.params.folder),
       })
       .toArray();
@@ -49,24 +49,20 @@ getFiles = async (req, res) => {
   }
 };
 
-moveFiles = async (req, res) => {
+exports.moveFiles = async (req, res) => {
   //Get file collection
   const db = Connection.db;
   const files = db.collection("fs.files");
-
   const fileArray = [];
 
   req.body.files.forEach((file) => {
     fileArray.push(returnObjectID(file));
   });
-  // Need current user, folder, file
-  // Need folder
   try {
-    const file = files
+    files
       .update(
         {
           _id: { $in: fileArray },
-          "metadata.user": returnObjectID(req.user._id),
         },
         {
           $set: {
@@ -89,7 +85,7 @@ moveFiles = async (req, res) => {
 /* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
 /* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
 /* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
-deleteFiles = async (req, res) => {
+exports.deleteFiles = async (req, res) => {
   //Get file collection
   const db = Connection.db;
   const files = db.collection("fs.files");
@@ -98,44 +94,28 @@ deleteFiles = async (req, res) => {
   req.body.files.forEach((file) => {
     fileArray.push(returnObjectID(file));
   });
-  // Need current user, folder, file
-  // Need folder
 
   try {
-    const f = await files
-      .find({
-        _id: { $in: fileArray },
-        "metadata.user": returnObjectID(req.user._id),
-      })
-      .project({
-        _id: 1,
-      })
-      .toArray();
-    f.map(async (file) => {
+    fileArray.map(async (file) => {
       await gfs.delete(file._id);
+      res.redirect("/viewFolders");
     });
-    res.redirect("/viewFolders");
   } catch (err) {
     console.log(err);
   }
 };
 
-renameFile = async (req, res) => {
-  const files = Connection.db.collection("fs.files");
-  const result = await files.updatOne(
-    {
-      _id: req.body.fileID,
-      "metadata.user": req.user._id,
-    },
-    {
-      $set: { filename: req.body.newName },
-    }
+exports.renameFile = async (req, res) => {
+  const gfs = Connection.gfs;
+  const result = await gfs.rename(
+    returnObjectID(req.body.fileID),
+    req.body.newName
   );
   if (!result) return res.redirect("/error");
   return res.redirect("/viewFolders");
 };
 
-copyFile = (req, res) => {
+exports.copyFile = (req, res) => {
   const gfs = Connection.gfs;
   let fileArray = [];
   let filesSelectedLength = req.body.fileID.length;
@@ -163,13 +143,4 @@ copyFile = (req, res) => {
       res.redirect("/viewFolders");
     });
   });
-};
-
-module.exports = {
-  uploadFile,
-  getFiles,
-  moveFiles,
-  deleteFiles,
-  renameFile,
-  copyFile,
 };

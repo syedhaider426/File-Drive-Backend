@@ -6,7 +6,7 @@ const sgMail = require("@sendgrid/mail");
 const Joi = require("@hapi/joi");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
-register = async (req, res) => {
+exports.register = async (req, res) => {
   const schema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().required(),
@@ -69,7 +69,7 @@ register = async (req, res) => {
   }
 };
 
-confirmUser = async (req, res) => {
+exports.confirmUser = async (req, res) => {
   const db = Connection.db;
   const tokens = db.collection("tokens");
   try {
@@ -86,7 +86,7 @@ confirmUser = async (req, res) => {
   }
 };
 
-resendVerificationEmail = async (req, res) => {
+exports.resendVerificationEmail = async (req, res) => {
   const schema = Joi.object({
     email: Joi.string().email().required(),
   });
@@ -134,5 +134,3 @@ resendVerificationEmail = async (req, res) => {
     console.error(err);
   }
 };
-
-module.exports = { register, confirmUser, resendVerificationEmail };

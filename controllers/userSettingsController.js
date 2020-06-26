@@ -11,7 +11,7 @@ sgMail.setApiKey(keys.sendgrid_api_key);
 // You could even ditch the "async" keyword here,
 // because you do not do/need any awaits inside the function.
 // toArray() without a callback function argument already returns a promise.
-getUserByEmail = async (email) => {
+exports.getUserByEmail = async (email) => {
   const db = Connection.db;
   const users = db.collection("users");
 
@@ -21,7 +21,7 @@ getUserByEmail = async (email) => {
   return result;
 };
 
-getUserById = async (id) => {
+exports.getUserById = async (id) => {
   const db = Connection.db;
   const users = db.collection("users");
   const result = await users.findOne(
@@ -35,7 +35,7 @@ getUserById = async (id) => {
   return result;
 };
 
-resetPassword = async (req, res) => {
+exports.resetPassword = async (req, res) => {
   const schema = Joi.object({
     password: Joi.string().required(),
   });
@@ -72,7 +72,7 @@ resetPassword = async (req, res) => {
   }
 };
 
-resetEmail = async (req, res) => {
+exports.resetEmail = async (req, res) => {
   const schema = Joi.object({
     email: Joi.string().email().required(),
   });
@@ -104,7 +104,7 @@ resetEmail = async (req, res) => {
   }
 };
 
-forgotPassword = async (req, res) => {
+exports.forgotPassword = async (req, res) => {
   const schema = Joi.object({
     email: Joi.string().email().required(),
   });
@@ -153,7 +153,7 @@ forgotPassword = async (req, res) => {
   }
 };
 
-newPassword = async (req, res) => {
+exports.newPassword = async (req, res) => {
   const schema = Joi.object({
     password: Joi.string().required(),
     repeat_password: Joi.ref("password"),
@@ -187,13 +187,4 @@ newPassword = async (req, res) => {
   } catch (err) {
     console.error("Err", err);
   }
-};
-
-module.exports = {
-  getUserByEmail,
-  getUserById,
-  resetPassword,
-  resetEmail,
-  forgotPassword,
-  newPassword,
 };
