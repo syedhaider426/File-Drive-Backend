@@ -22,6 +22,7 @@ exports.uploadFile = (req, res) => {
       },
     };
     let filesLength = files.length;
+    console.log(files.length);
     for (let i = 0; i < filesLength; i++) {
       let writestream = Connection.gfs.openUploadStream(files[i], options);
       fs.createReadStream(paths[i]).pipe(writestream);
@@ -41,7 +42,7 @@ exports.getFiles = async (req, res) => {
       .find({
         "metadata.user": req.user._id,
         "metadata.folder": returnObjectID(req.params.folder),
-        isTrashed: false,
+        "metadata.isTrashed": false,
       })
       .toArray();
   } catch (err) {

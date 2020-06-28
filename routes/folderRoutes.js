@@ -4,6 +4,8 @@ const {
   renameFolder,
   moveFolders,
   deleteFolders,
+  trashFolders,
+  restoreFolders,
 } = require("../controllers/folderController");
 
 /**
@@ -22,4 +24,10 @@ module.exports = (app) => {
 
   // @route POST - Deletes a folder if the user is authenticated.
   app.post("/deleteFolder", checkAuthenticated, deleteFolders);
+
+  // @route POST - Sends a folder to trash if the user is authenticated.
+  app.post("/trashFolder", checkAuthenticated, trashFolders);
+
+  // @route POST - Restores a folder for use if the user is authenticated.
+  app.post("/restoreFolder", checkAuthenticated, restoreFolders);
 };

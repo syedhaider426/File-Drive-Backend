@@ -1,6 +1,9 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
 const checkFolderExists = require("../middlewares/checkFolderExists");
-const { getFolders } = require("../controllers/folderController");
+const {
+  getFolders,
+  getTrashFolders,
+} = require("../controllers/folderController");
 const { getFiles, getTrashFiles } = require("../controllers/fileController");
 module.exports = (app) => {
   app.get("/trash", checkAuthenticated, async (req, res) => {
@@ -15,6 +18,23 @@ module.exports = (app) => {
       <form action="/restoreFiles" method="post" name="RestoreFile">
         <input type="hidden" name="files" value=${trashFolder[k]._id}>
         <button id="restoreFiles" type="submit" value="Restore Files">Restore Files</button>
+      </form>`;
+    }
+    res.send(htmlString);
+  });
+  app.get("/trashFolder", checkAuthenticated, async (req, res) => {
+    const trashFolder = await getTrashFolders(req, res);
+    console.log(trashFolder);
+    let htmlString = "";
+    for (let k = 0; k < trashFolder.length; ++k) {
+      htmlString += `<label>${trashFolder[k].Title}</label>
+      <form action="/deleteFolder" method="post" name="DeleteFolders">
+        <input type="hidden" name="folders" value=${trashFolder[k]._id}>
+        <button id="deleteFolders" type="submit" value="Delete Folder">Delete Folder</button>
+      </form>
+      <form action="/restoreFolder" method="post" name="RestoreFolder">
+        <input type="hidden" name="folders" value=${trashFolder[k]._id}>
+        <button id="restoreFolders" type="submit" value="Restore Folder">Restore Folder</button>
       </form>`;
     }
     res.send(htmlString);
@@ -40,10 +60,11 @@ module.exports = (app) => {
         <input type="hidden" name="folderID" value=${folders[x]._id}>
       <button id="renameFolder" type="submit" value="Rename Folder">Rename Folder</button>
     </form>`;
-      htmlString += `  <form action="/trashFolders" method="post" name="DeleteFolder">
+      htmlString += `  <form action="/trashFolder" method="post" name="DeleteFolder">
     <input type="hidden" name="folderID" value=${folders[x]._id}>
   <button id="deleteFolder" type="submit" value="Delete Folder">Delete Folder</button>
 </form>`;
+
       htmlString +=
         `  <form action="/moveFolder" method="post" name="MoveFolder">
     <input type="hidden" name="folderID" value=${folders[x]._id}>
@@ -53,6 +74,10 @@ module.exports = (app) => {
   <button id="moveFolder" type="submit" value="Move Folder">Move Folder</button>
 </form>`;
     }
+    htmlString += `  <form action="/createFolder" method="post" name="CreateFolder">
+<input type="text" name="folder">
+<button id="createFolder" type="submit" value="Create Folder">Create Folder</button>
+</form>`;
     htmlString += `<div><a href="/home">Home</a></div>`;
     res.send(htmlString);
   });
