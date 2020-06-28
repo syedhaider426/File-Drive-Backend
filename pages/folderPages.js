@@ -1,8 +1,24 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
 const checkFolderExists = require("../middlewares/checkFolderExists");
 const { getFolders } = require("../controllers/folderController");
-const { getFiles } = require("../controllers/fileController");
+const { getFiles, getTrashFiles } = require("../controllers/fileController");
 module.exports = (app) => {
+  app.get("/trash", checkAuthenticated, async (req, res) => {
+    const trashFolder = await getTrashFiles(req, res);
+    let htmlString = "";
+    for (let k = 0; k < trashFolder.length; ++k) {
+      htmlString += `<label>${trashFolder[k].filename}</label>
+      <form action="/deleteFiles" method="post" name="DeleteFile">
+        <input type="hidden" name="files" value=${trashFolder[k]._id}>
+        <button id="deleteFiles" type="submit" value="Delete Files">Delete Files</button>
+      </form>
+      <form action="/restoreFiles" method="post" name="RestoreFile">
+        <input type="hidden" name="files" value=${trashFolder[k]._id}>
+        <button id="restoreFiles" type="submit" value="Restore Files">Restore Files</button>
+      </form>`;
+    }
+    res.send(htmlString);
+  });
   app.get("/viewFolders", checkAuthenticated, async (req, res) => {
     const folders = await getFolders(req, res);
 
@@ -24,7 +40,7 @@ module.exports = (app) => {
         <input type="hidden" name="folderID" value=${folders[x]._id}>
       <button id="renameFolder" type="submit" value="Rename Folder">Rename Folder</button>
     </form>`;
-      htmlString += `  <form action="/deleteFolder" method="post" name="DeleteFolder">
+      htmlString += `  <form action="/trashFolders" method="post" name="DeleteFolder">
     <input type="hidden" name="folderID" value=${folders[x]._id}>
   <button id="deleteFolder" type="submit" value="Delete Folder">Delete Folder</button>
 </form>`;
@@ -37,7 +53,7 @@ module.exports = (app) => {
   <button id="moveFolder" type="submit" value="Move Folder">Move Folder</button>
 </form>`;
     }
-
+    htmlString += `<div><a href="/home">Home</a></div>`;
     res.send(htmlString);
   });
 
@@ -71,18 +87,26 @@ module.exports = (app) => {
             `
           <button id="move" type="submit" disabled value="Move File">Move File</button>
         </form>
-        <form action="/deleteFiles" method="post" name="DeleteFile">
+       
+       
+       
+        <form action="/trashFiles" method="post" name="DeleteFile">
           <input type="hidden" name="files" value=${files[x]._id}>
           <label>${files[x].filename}</label>
           <button id="delete" type="submit" value="Delete File">Delete File</button>
         </form>
+       
+       
         <form action="/renameFile" method="post" name="RenameFile">
           <input type="text" name="newName">
           <input type="hidden" name="fileID" value=${files[x]._id}>
           <input type="hidden" name="currentName" value=${files[x].filename}>
           <label>${files[x].filename}</label>
         <button id="rename" type="submit" value="Rename File">Rename File</button>
-      </form>
+ 
+      
+      
+        </form>
       <form action="/copyFile" method="post" name="Copy">
       <input type="hidden" name="fileID" value=${files[x]._id}>
       <input type="hidden" name="fileName" value=${files[x].filename}>

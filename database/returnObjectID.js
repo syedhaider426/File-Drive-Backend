@@ -6,7 +6,6 @@ const mongodb = require("mongodb");
  * @param {string} - objectID is converted into Mongo's ObjectID type
  */
 createObjectID = (objectID) => {
-  if (objectID === "" || objectID.length !== 24) return "";
   return new mongodb.ObjectID(objectID);
 };
 

@@ -4,7 +4,6 @@ const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 
 exports.uploadFile = (req, res) => {
-  const gfs = Connection.gfs;
   //Pass in an array of files
   const form = new formidable.IncomingForm();
   (files = []), (paths = []);
@@ -17,13 +16,14 @@ exports.uploadFile = (req, res) => {
     let options = {
       metadata: {
         user: req.user._id,
+        isTrashed: false,
         lastUpdatedOn: new Date(),
         folder: returnObjectID(req.params.folder),
       },
     };
     let filesLength = files.length;
     for (let i = 0; i < filesLength; i++) {
-      let writestream = gfs.openUploadStream(files[i], options);
+      let writestream = Connection.gfs.openUploadStream(files[i], options);
       fs.createReadStream(paths[i]).pipe(writestream);
     }
     if (req.params.folder) return res.redirect(`/folder/${req.params.folder}`);
@@ -39,8 +39,9 @@ exports.getFiles = async (req, res) => {
   try {
     return await files
       .find({
-        "metadata.user": returnObjectID(req.user._id),
+        "metadata.user": req.user._id,
         "metadata.folder": returnObjectID(req.params.folder),
+        isTrashed: false,
       })
       .toArray();
   } catch (err) {
@@ -85,15 +86,14 @@ exports.moveFiles = async (req, res) => {
 /* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
 /* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
 exports.deleteFiles = async (req, res) => {
-  let fileArray = [];
+  const fileArray = [];
 
-  req.body.files.forEach((file) => {
-    fileArray.push(returnObjectID(file));
-  });
-
+  if (typeof req.body.files === "string")
+    fileArray.push(returnObjectID(req.body.files));
+  else req.body.files.forEach((file) => fileArray.push(returnObjectID(file)));
   try {
     fileArray.map(async (file) => {
-      await gfs.delete(file._id);
+      await Connection.gfs.delete(file);
     });
     res.redirect("/viewFolders");
   } catch (err) {
@@ -101,9 +101,57 @@ exports.deleteFiles = async (req, res) => {
   }
 };
 
+exports.trashFiles = async (req, res) => {
+  const fileArray = [];
+  if (typeof req.body.files === "string")
+    fileArray.push(returnObjectID(req.body.files));
+  else req.body.files.forEach((file) => fileArray.push(returnObjectID(file)));
+  //Find files and set isTrashed to true
+  try {
+    const result = await Connection.db.collection("fs.files").updateOne(
+      {
+        _id: { $in: fileArray },
+      },
+      {
+        $set: { isTrashed: true, trashedAt: new Date() },
+      }
+    );
+    if (!result) return res.redirect("/viewFolders");
+    res.redirect("/viewFolders");
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+exports.getTrashFiles = async (req, res) => {
+  const result = await Connection.db
+    .collection("fs.files")
+    .find({
+      "metadata.user": req.user._id,
+      isTrashed: true,
+    })
+    .toArray();
+  return result;
+};
+
+exports.restoreFiles = async (req, res) => {
+  const fileArray = [];
+  if (typeof req.body.files === "string")
+    fileArray.push(returnObjectID(req.body.files));
+  else req.body.files.forEach((file) => fileArray.push(returnObjectID(file)));
+  const result = await Connection.db.collection("fs.files").updateMany(
+    {
+      "metadata.user": req.user._id,
+      _id: { $in: fileArray },
+    },
+    { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
+  );
+  if (!result) return res.redirect("/trash");
+  return res.redirect("/viewFolders");
+};
+
 exports.renameFile = async (req, res) => {
-  const gfs = Connection.gfs;
-  const result = await gfs.rename(
+  const result = await Connection.gfs.rename(
     returnObjectID(req.body.fileID),
     req.body.newName
   );
@@ -112,15 +160,20 @@ exports.renameFile = async (req, res) => {
 };
 
 exports.copyFiles = (req, res) => {
-  const gfs = Connection.gfs;
   let fileArray = [];
   let filesSelectedLength = req.body.fileID.length;
-
-  for (let i = 0; i < filesSelectedLength; ++i) {
+  if (filesSelectedLength === 1) {
     fileArray.push({
-      id: returnObjectID(req.body.fileID[i]),
-      filename: req.body.fileName[i],
+      id: returnObjectID(req.body.fileID),
+      filename: req.body.fileName,
     });
+  } else {
+    for (let i = 0; i < filesSelectedLength; ++i) {
+      fileArray.push({
+        id: returnObjectID(req.body.fileID[i]),
+        filename: req.body.fileName[i],
+      });
+    }
   }
 
   let options = {
@@ -131,6 +184,7 @@ exports.copyFiles = (req, res) => {
     },
   };
   /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
+  const gfs = Connection.gfs;
   fileArray.map((file) => {
     let downloadStream = gfs.openDownloadStream(returnObjectID(file.id));
     let writeStream = gfs.openUploadStream(`Copy of ${file.filename}`, options);

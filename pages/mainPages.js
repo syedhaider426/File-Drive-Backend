@@ -17,6 +17,9 @@ module.exports = (app) => {
           <div>
             <a href="/accountSettings">Account Settings</a>
           </div>
+          <div>
+          <a href="/trash">View Trash</a>
+        </div>
           
         `);
   });

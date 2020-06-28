@@ -33,11 +33,11 @@ exports.createFolder = async (req, res) => {
   }
 };
 
-exports.getFolders = (req, res) => {
+exports.getFolders = async (req, res) => {
   const folders = Connection.db.collection("folders");
   // Without a callback, toArray() returns a Promise.
   // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  return folders.find({ UserID: returnObjectID(req.user._id) }).toArray();
+  return await folders.find({ UserID: req.user._id }).toArray();
 };
 
 exports.renameFolder = async (req, res) => {

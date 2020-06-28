@@ -5,6 +5,8 @@ const {
   deleteFiles,
   renameFile,
   copyFiles,
+  trashFiles,
+  restoreFiles,
 } = require("../controllers/fileController");
 const checkFolderExists = require("../middlewares/checkFolderExists");
 
@@ -35,4 +37,10 @@ module.exports = (app) => {
 
   // @route POST - Copies a file if the user is authenticated.
   app.post("/copyFile", checkAuthenticated, copyFiles);
+
+  // @route POST - Sends file to trash if the user is authenticated.
+  app.post("/trashFiles", checkAuthenticated, trashFiles);
+
+  // @route POST - Restores a file if the user is authenticated.
+  app.post("/restoreFiles", checkAuthenticated, restoreFiles);
 };

@@ -1,5 +1,5 @@
 const LocalStrategy = require("passport-local").Strategy;
-const user = require("./passportSerialize");
+const user = require("./passportHelpers");
 
 /* http://toon.io/understanding-passportjs-authentication-flow/*/
 
@@ -22,8 +22,6 @@ initializePassport = (app, passport) => {
 
   //When a user makes a request, it deserializes/retrieves the user in req.session
   passport.deserializeUser(user.deserialize);
-
-  console.log("Passport initialized");
 };
 
 module.exports = initializePassport;
