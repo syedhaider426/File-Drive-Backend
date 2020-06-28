@@ -178,3 +178,42 @@ exports.getTrashFolders = async (req, res) => {
     })
     .toArray();
 };
+
+exports.favoriteFolders = async (req, res) => {
+  const folders = [];
+  if (typeof req.body.folderID === "string")
+    folders.push(returnObjectID(req.body.folderID));
+  else
+    req.body.folderID.forEach((folder) => folders.push(returnObjectID(folder)));
+
+  const result = await Connection.db
+    .collection("folders")
+    .updateMany({ _id: { $in: folders } }, { $set: { isFavorited: true } });
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+exports.unfavoriteFolders = async (req, res) => {
+  const folders = [];
+  if (typeof req.body.folderID === "string")
+    folders.push(returnObjectID(req.body.folderID));
+  else
+    req.body.folderID.forEach((folder) => folders.push(returnObjectID(folder)));
+
+  const result = await Connection.db
+    .collection("folders")
+    .updateMany({ _id: { $in: folders } }, { $set: { isFavorited: false } });
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+exports.getFavoriteFolders = async (req, res) => {
+  return await Connection.db
+    .collection("folders")
+    .find({
+      UserID: req.user._id,
+      isFavorited: true,
+      isTrashed: false,
+    })
+    .toArray();
+};

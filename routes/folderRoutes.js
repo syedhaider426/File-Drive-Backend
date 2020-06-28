@@ -6,6 +6,8 @@ const {
   deleteFolders,
   trashFolders,
   restoreFolders,
+  favoriteFolders,
+  unfavoriteFolders,
 } = require("../controllers/folderController");
 
 /**
@@ -30,4 +32,10 @@ module.exports = (app) => {
 
   // @route POST - Restores a folder for use if the user is authenticated.
   app.post("/restoreFolder", checkAuthenticated, restoreFolders);
+
+  // @route POST - Favorites a folder for use if the user is authenticated.
+  app.post("/favoriteFolder", checkAuthenticated, favoriteFolders);
+
+  // @route POST - Favorites a folder for use if the user is authenticated.
+  app.post("/unfavoriteFolder", checkAuthenticated, unfavoriteFolders);
 };

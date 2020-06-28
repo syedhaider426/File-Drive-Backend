@@ -3,9 +3,22 @@ const checkFolderExists = require("../middlewares/checkFolderExists");
 const {
   getFolders,
   getTrashFolders,
+  getFavoriteFolders,
 } = require("../controllers/folderController");
 const { getFiles, getTrashFiles } = require("../controllers/fileController");
 module.exports = (app) => {
+  app.get("/getFavoriteFolders", checkAuthenticated, async (req, res) => {
+    const favoriteFolders = await getFavoriteFolders(req, res);
+    let htmlString = "";
+    for (let k = 0; k < favoriteFolders.length; ++k) {
+      htmlString += `<label>${favoriteFolders[k].Title}</label>
+      <form action="/unfavoriteFolder" method="post" name="UnfavoriteFolder">
+        <input type="hidden" name="folderID" value=${favoriteFolders[k]._id}>
+        <button id="unfavoriteFolder" type="submit" value="Unfavorite Files">Unfavorite Files</button>
+      </form>`;
+    }
+    res.send(htmlString);
+  });
   app.get("/trash", checkAuthenticated, async (req, res) => {
     const trashFolder = await getTrashFiles(req, res);
     let htmlString = "";
@@ -63,6 +76,11 @@ module.exports = (app) => {
       htmlString += `  <form action="/trashFolder" method="post" name="DeleteFolder">
     <input type="hidden" name="folderID" value=${folders[x]._id}>
   <button id="deleteFolder" type="submit" value="Delete Folder">Delete Folder</button>
+</form>`;
+
+      htmlString += `  <form action="/favoriteFolder" method="post" name="FavoriteFolder">
+<input type="hidden" name="folderID" value=${folders[x]._id}>
+<button id="favoriteFolder" type="submit" value="Favorite Folder">Favorite Folder</button>
 </form>`;
 
       htmlString +=
