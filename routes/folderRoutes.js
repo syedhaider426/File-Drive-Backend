@@ -16,26 +16,26 @@ const {
  */
 module.exports = (app) => {
   // @route POST - Creates a folder if the user is authenticated.
-  app.post("/createFolder", checkAuthenticated, createFolder);
+  app.post("/api/folders/create", checkAuthenticated, createFolder);
 
   // @route POST - Renames a folder if the user is authenticated.
-  app.post("/renameFolder", checkAuthenticated, renameFolder);
+  app.post("/api/folders/rename", checkAuthenticated, renameFolder);
 
   // @route POST - Moves a folder if the user is authenticated.
-  app.post("/moveFolder", checkAuthenticated, moveFolders);
+  app.post("/api/folders/move", checkAuthenticated, moveFolders);
 
   // @route POST - Deletes a folder if the user is authenticated.
-  app.post("/deleteFolder", checkAuthenticated, deleteFolders);
+  app.post("/api/folders/delete", checkAuthenticated, deleteFolders);
 
   // @route POST - Sends a folder to trash if the user is authenticated.
-  app.post("/trashFolder", checkAuthenticated, trashFolders);
+  app.post("/api/folders/trash", checkAuthenticated, trashFolders);
 
   // @route POST - Restores a folder for use if the user is authenticated.
-  app.post("/restoreFolder", checkAuthenticated, restoreFolders);
+  app.post("/api/folders/restore", checkAuthenticated, restoreFolders);
 
   // @route POST - Favorites a folder if the user is authenticated.
-  app.post("/favoriteFolder", checkAuthenticated, favoriteFolders);
+  app.post("/api/folders/favorite", checkAuthenticated, favoriteFolders);
 
   // @route POST - Unfavorites a folder if the user is authenticated.
-  app.post("/unfavoriteFolder", checkAuthenticated, unfavoriteFolders);
+  app.post("/api/folders/unfavorite", checkAuthenticated, unfavoriteFolders);
 };

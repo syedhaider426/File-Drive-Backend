@@ -5,7 +5,7 @@ const {
   resetPassword,
   forgotPassword,
   newPassword,
-} = require("../controllers/userSettingsController");
+} = require("../controllers/accountController");
 
 /**
  * This module focuses on the endpoints related to user settings (email,password).
@@ -13,14 +13,14 @@ const {
  */
 module.exports = (app) => {
   // @route POST - Resets the user's password if they are authenticated
-  app.post("/resetPassword", checkAuthenticated, resetPassword);
+  app.post("/api/user/resetPassword", checkAuthenticated, resetPassword);
 
   // @route POST - Resets the user's email if they are authenticated
-  app.post("/resetEmail", checkAuthenticated, resetEmail);
+  app.post("/api/user/resetEmail", checkAuthenticated, resetEmail);
 
   // @route POST - Sends an email to the user if they forgot their password
-  app.post("/forgotPassword", forgotPassword);
+  app.post("/api/user/forgotPassword", forgotPassword);
 
   // @route POST - Saves the user's new password if a valid token is provided.
-  app.post("/newPassword", newPassword);
+  app.post("/api/user/newPassword", newPassword);
 };

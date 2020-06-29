@@ -12,13 +12,13 @@ const passport = require("passport");
  */
 module.exports = (app) => {
   // @route POST - Registers a user if they are not authenticated.
-  app.post("/register", checkNotAuthenticated, register);
+  app.post("/api/register", checkNotAuthenticated, register);
 
   // @route GET - Verifies the user's email if they provide the token that is sent to their email.
   app.get("/confirmRegistration", confirmUser);
 
   // @route POST - Resends an confirmation email to user if they did not their confirm their account.
-  app.post("/resendEmailVerification", resendVerificationEmail);
+  app.post("/api/resendEmailVerification", resendVerificationEmail);
 
   // @route POST - Logs in the user if they are not authenticated and provide the proper credentials.
   app.post(

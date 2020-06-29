@@ -1,6 +1,8 @@
 //Requires in the express object
 const express = require("express");
 
+const fs = require("fs");
+
 //Creates an instance of express
 const app = express();
 const port = require("./config/keys").port;
@@ -15,16 +17,17 @@ app.use(express.urlencoded({ extended: true }));
 require("./startup/server")(app);
 require("./startup/db")();
 
-// These four modules initialize the routes
-require("./routes/fileRoutes")(app);
-require("./routes/folderRoutes")(app);
-require("./routes/registerRoutes")(app);
-require("./routes/accountSettingRoutes")(app);
+// Module loader to initialize the routes
+const routesPath = require("path").join(__dirname, "routes");
+fs.readdirSync(routesPath).forEach((file) => {
+  require("./routes/" + file)(app);
+});
 
-// These three modules are the pages that are referenced when navigating through the website
-require("./pages/mainPages")(app);
-require("./pages/accountSettingsPages")(app);
-require("./pages/folderPages")(app);
+// Module loader for the pages that are referenced when navigating through the website
+const pagesPath = require("path").join(__dirname, "pages");
+fs.readdirSync(pagesPath).forEach((file) => {
+  require("./pages/" + file)(app);
+});
 
 // Returns a 404 error message if an invalid URL is entered
 app.use((req, res) => {

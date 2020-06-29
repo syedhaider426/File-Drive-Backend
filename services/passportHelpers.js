@@ -3,7 +3,7 @@ const Joi = require("@hapi/joi"); //Library used to validate inputs
 const {
   getUserById,
   getUserByEmail,
-} = require("../controllers/userSettingsController");
+} = require("../controllers/accountController");
 
 const user = {
   //Stores the id in the req.session.passport.user object
