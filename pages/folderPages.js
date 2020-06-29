@@ -1,5 +1,5 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
-const checkFolderExists = require("../middlewares/checkFolderExists");
+
 const {
   getFolders,
   getTrashFolders,
@@ -100,34 +100,30 @@ module.exports = (app) => {
     res.send(htmlString);
   });
 
-  app.get(
-    "/folder/:folder",
-    checkAuthenticated,
-    checkFolderExists,
-    async (req, res) => {
-      const files = await getFiles(req, res);
+  app.get("/folder/:folder", checkAuthenticated, async (req, res) => {
+    const files = await getFiles(req, res);
 
-      const folders = await getFolders(req, res);
+    const folders = await getFolders(req, res);
 
-      /****************** */
-      var folderString = `<select name="folder">`;
-      for (let j = 0; j < folders.length; ++j) {
-        folderString += `<option value=${folders[j]._id}>${folders[j].Title}</option>`;
-      }
-      folderString += `</select>`;
-      /****************** */
-      var htmlString = "";
-      if (files.length == 0) {
-        htmlString += `<label>No files found</label>`;
-      } else {
-        for (let x = 0; x < files.length; ++x) {
-          htmlString +=
-            `<form action="/api/files/move" method="post" name="MoveFile">
+    /****************** */
+    var folderString = `<select name="folder">`;
+    for (let j = 0; j < folders.length; ++j) {
+      folderString += `<option value=${folders[j]._id}>${folders[j].Title}</option>`;
+    }
+    folderString += `</select>`;
+    /****************** */
+    var htmlString = "";
+    if (files.length == 0) {
+      htmlString += `<label>No files found</label>`;
+    } else {
+      for (let x = 0; x < files.length; ++x) {
+        htmlString +=
+          `<form action="/api/files/move" method="post" name="MoveFile">
           <input type="hidden" name="files" value=${files[x]._id}>
           <label>${files[x].filename}</label>
         ` +
-            folderString +
-            `
+          folderString +
+          `
           <button id="move" type="submit" disabled value="Move File">Move File</button>
         </form>
        
@@ -161,18 +157,17 @@ module.exports = (app) => {
          </br>
          </br>
         `;
-        }
       }
+    }
 
-      /****************** */
+    /****************** */
 
-      htmlString += `<h2>With <code>"File Upload"</code></h2>
+    htmlString += `<h2>With <code>"File Upload"</code></h2>
     <form action="/api/upload/${req.params.folder}" enctype="multipart/form-data" method="post">
       <div>Text field title: <input type="text" name="title" /></div>
       <div><label class="File">File:</label> <input type="file" name="someExpressFiles" multiple="multiple" /></div>
       <input type="submit" value="Upload" />
     </form>`;
-      res.send(htmlString);
-    }
-  );
+    res.send(htmlString);
+  });
 };

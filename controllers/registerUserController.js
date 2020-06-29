@@ -22,28 +22,34 @@ exports.register = async (req, res) => {
   } catch (err) {
     return res.redirect("/register");
   }
-
-  const db = Connection.db;
-  const users = db.collection("users");
+  const users = Connection.db.collection("users");
   try {
-    const email = await users.findOne(
+    const existingEmail = await users.findOne(
       { email: req.body.email },
-      {
-        projection: {
-          email: 1,
-        },
-      }
+      { _id: 1 }
     );
-    if (email) return res.redirect("/register");
+    if (existingEmail)
+      return res.status(409).json({
+        error: {
+          message:
+            "Email has already been registered. Please try a different email",
+        },
+      });
     const password = await bcrypt.hash(req.body.password, 10);
-    const user = {
+    const newUser = await users.insertOne({
       email: req.body.email,
       password: password,
       isVerified: false,
-    };
-    let result = await users.insertOne(user);
+    });
+    if (!newUser)
+      return res.status(409).json({
+        error: {
+          message:
+            "There was an error registering your account. Please try again.",
+        },
+      });
     const token = await jwt.sign(
-      { id: result.insertedId },
+      { id: newUser.insertedId },
       keys.jwtPrivateKey,
       { expiresIn: "1h" }
     );
@@ -59,9 +65,19 @@ exports.register = async (req, res) => {
         token +
         "\n",
     };
-    await sgMail.send(mailOptions);
-    if (!result) return res.redirect("/register");
-    return res.redirect("/verification");
+    const mail = await sgMail.send(mailOptions);
+    if (!mail)
+      return res.status(409).json({
+        error: {
+          message:
+            "There was an error registering your account. Please try again.",
+        },
+      });
+    return res.json({
+      success: true,
+      message:
+        "You have successfully registered your account. Please check your email to confirm your account.",
+    });
   } catch (err) {
     console.error(err);
   }
