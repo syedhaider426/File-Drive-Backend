@@ -20,6 +20,9 @@ module.exports = (app) => {
           <div>
           <a href="/trash">View Trash</a>
         </div>
+        <form action="/logout" method="get" name="Logout">
+        <button id="logout" type="submit" value="Log Out">Log Out</button>
+      </form>
           
         `);
   });
