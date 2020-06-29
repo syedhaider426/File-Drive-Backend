@@ -21,7 +21,7 @@ module.exports = (app) => {
           <a href="/trash">View Trash</a>
         </div>
         <form action="/logout" method="get" name="Logout">
-        <button id="logout" type="submit" value="Log Out">Log Out</button>
+        <button id="logout" type="submit" value="Log Out">Sign Out</button>
       </form>
           
         `);

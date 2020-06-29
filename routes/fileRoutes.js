@@ -7,6 +7,8 @@ const {
   copyFiles,
   trashFiles,
   restoreFiles,
+  favoriteFiles,
+  unfavoriteFiles,
 } = require("../controllers/fileController");
 const checkFolderExists = require("../middlewares/checkFolderExists");
 
@@ -43,4 +45,10 @@ module.exports = (app) => {
 
   // @route POST - Restores a file if the user is authenticated.
   app.post("/restoreFiles", checkAuthenticated, restoreFiles);
+
+  // @route POST - Favorites a folder if the user is authenticated.
+  app.post("/favoriteFile", checkAuthenticated, favoriteFiles);
+
+  // @route POST - Unfavorites a folder if the user is authenticated.
+  app.post("/unfavoriteFile", checkAuthenticated, unfavoriteFiles);
 };

@@ -195,3 +195,40 @@ exports.copyFiles = (req, res) => {
     });
   });
 };
+
+exports.favoriteFiles = async (req, res) => {
+  const files = [];
+  if (typeof req.body.files === "string")
+    files.push(returnObjectID(req.body.files));
+  else req.body.files.forEach((folder) => files.push(returnObjectID(folder)));
+
+  const result = await Connection.db
+    .collection("fs.files")
+    .updateMany({ _id: { $in: files } }, { $set: { isFavorited: true } });
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+exports.unfavoriteFiles = async (req, res) => {
+  const files = [];
+  if (typeof req.body.files === "string")
+    files.push(returnObjectID(req.body.files));
+  else req.body.files.forEach((folder) => files.push(returnObjectID(folder)));
+
+  const result = await Connection.db
+    .collection("fs.files")
+    .updateMany({ _id: { $in: files } }, { $set: { isFavorited: false } });
+  if (!result) return res.redirect("/error");
+  return res.redirect("/viewFolders");
+};
+
+exports.getFavoriteFiles = async (req, res) => {
+  return await Connection.db
+    .collection("fs.files")
+    .find({
+      "metadata.user": req.user._id,
+      isFavorited: true,
+      isTrashed: false,
+    })
+    .toArray();
+};

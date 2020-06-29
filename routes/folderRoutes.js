@@ -33,9 +33,9 @@ module.exports = (app) => {
   // @route POST - Restores a folder for use if the user is authenticated.
   app.post("/restoreFolder", checkAuthenticated, restoreFolders);
 
-  // @route POST - Favorites a folder for use if the user is authenticated.
+  // @route POST - Favorites a folder if the user is authenticated.
   app.post("/favoriteFolder", checkAuthenticated, favoriteFolders);
 
-  // @route POST - Favorites a folder for use if the user is authenticated.
+  // @route POST - Unfavorites a folder if the user is authenticated.
   app.post("/unfavoriteFolder", checkAuthenticated, unfavoriteFolders);
 };
