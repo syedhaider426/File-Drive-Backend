@@ -6,8 +6,11 @@ checkAuthenticated = (req, res, next) => {
   if (req.isAuthenticated()) {
     return next();
   }
-
-  res.redirect("/");
+  res.status(401).json({
+    error: {
+      message: "You are not authorized to view this page.",
+    },
+  });
 };
 // Checks if the user is not authenticated
 checkNotAuthenticated = (req, res, next) => {

@@ -7,53 +7,48 @@ const jwt = require("jsonwebtoken");
 const returnObjectID = require("../database/returnObjectID");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
-exports.register = async (req, res) => {
+exports.register = async (req, res, next) => {
   const schema = Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().required(),
+    email: Joi.string().email().required().messages({
+      "string.email": `Please provide a proper email address.`,
+      "any.required": `Email cannot be empty.`,
+    }),
+    password: Joi.string().required().messages({
+      "any.required": `Password cannot be empty.`,
+    }),
     repeat_password: Joi.ref("password"),
   });
-  try {
-    await schema.validate({
+
+  const validation = await schema.validate(
+    {
       email: req.body.email,
       password: req.body.password,
       repeat_password: req.body.confirmPassword,
+    },
+    { abortEarly: false }
+  );
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
     });
-  } catch (err) {
-    return res.redirect("/register");
-  }
-  const users = Connection.db.collection("users");
+
   try {
-    const existingEmail = await users.findOne(
-      { email: req.body.email },
-      { _id: 1 }
-    );
-    if (existingEmail)
-      return res.status(409).json({
-        error: {
-          message:
-            "Email has already been registered. Please try a different email",
-        },
-      });
     const password = await bcrypt.hash(req.body.password, 10);
-    const newUser = await users.insertOne({
+    const newUser = await Connection.db.collection("users").insertOne({
       email: req.body.email,
       password: password,
       isVerified: false,
     });
-    if (!newUser)
-      return res.status(409).json({
-        error: {
-          message:
-            "There was an error registering your account. Please try again.",
-        },
-      });
     const token = await jwt.sign(
       { id: newUser.insertedId },
       keys.jwtPrivateKey,
-      { expiresIn: "1h" }
+      {
+        expiresIn: "1h",
+      }
     );
-    let mailOptions = {
+    const mailOptions = {
       from: keys.email,
       to: req.body.email,
       subject: "Account Verification - GDrive Clone",
@@ -65,27 +60,33 @@ exports.register = async (req, res) => {
         token +
         "\n",
     };
-    const mail = await sgMail.send(mailOptions);
-    if (!mail)
-      return res.status(409).json({
-        error: {
-          message:
-            "There was an error registering your account. Please try again.",
-        },
-      });
-    return res.json({
-      success: true,
-      message:
-        "You have successfully registered your account. Please check your email to confirm your account.",
+    await sgMail.send(mailOptions);
+    return res.status(201).json({
+      success: {
+        message:
+          "You have successfully registered your account. Please check your email to confirm your account.",
+      },
     });
   } catch (err) {
-    console.error(err);
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message: "Email is already registered. Please try again.",
+        },
+      });
+    else if (err.code === 400) {
+      return res.status(400).json({
+        error: {
+          message:
+            "Confirmation email was not sent. Please register with a valid email address.",
+        },
+      });
+    }
   }
 };
 
 exports.confirmUser = async (req, res) => {
-  const db = Connection.db;
-  const users = db.collection("users");
+  const users = Connection.db.collection("users");
 
   try {
     const result = await jwt.verify(req.query.token, keys.jwtPrivateKey);
