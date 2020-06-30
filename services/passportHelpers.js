@@ -21,7 +21,7 @@ const user = {
       const validUser = await getUserById(id);
       return done(null, validUser);
     } catch (err) {
-      console.log(err);
+      done(err);
     }
   },
 
@@ -29,15 +29,28 @@ const user = {
   async authenticate(email, password, done) {
     //Declares schema for inputs
     const schema = Joi.object({
-      email: Joi.string().email().required(),
-      password: Joi.string().required(),
+      email: Joi.string().email().required().messages({
+        "string.empty": `Email cannot be empty.`,
+        "string.email": `Please provide a proper email address.`,
+      }),
+      password: Joi.string().required().messages({
+        "string.empty": `Password cannot be empty.`,
+      }),
     });
-    try {
-      //Schema validation to ensure user inputs are correct
-      await schema.validate({ email: email, password: password });
-    } catch (err) {
-      return done(null, false);
-    }
+    // Validate user inputs
+    const validation = await schema.validate({
+      password: req.body.password,
+      repeat_password: req.body.confirmPassword,
+    });
+
+    // Return error if any inputs do not satisfy the schema
+    if (validation.error)
+      return res.status(400).json({
+        error: {
+          message: validation.error,
+        },
+      });
+
     try {
       //Finds user based off their email
       const user = await getUserByEmail(email);
