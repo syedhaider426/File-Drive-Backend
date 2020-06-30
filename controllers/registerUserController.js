@@ -69,10 +69,11 @@ exports.register = async (req, res, next) => {
         req.headers.host +
         "/confirmRegistration?token=" +
         token +
-        "\n",
+        "\n\n" +
+        "If you have received this email by mistake, simply delete it.",
     };
 
-    // Send email
+    // Send email via SendGrid
     await sgMail.send(mailOptions);
 
     // Return success status back to client
@@ -83,22 +84,24 @@ exports.register = async (req, res, next) => {
       },
     });
   } catch (err) {
+    // If email already exists, throw an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {
           message: "Email is already registered. Please try again.",
         },
       });
+    else return res.status(404).json(err);
   }
 };
 
 exports.confirmUser = async (req, res) => {
   try {
     // Verify token
-    const result = await jwt.verify(req.query.token, keys.jwtPrivateKey);
+    const user = await jwt.verify(req.query.token, keys.jwtPrivateKey);
 
     // Throw error if token expired or is invalid
-    if (!result)
+    if (!user)
       return res.status(400).json({
         error: {
           message:
@@ -110,7 +113,7 @@ exports.confirmUser = async (req, res) => {
     const verifiedUser = await Connection.db
       .collection("users")
       .updateOne(
-        { _id: returnObjectID(result._id) },
+        { _id: returnObjectID(user._id) },
         { $set: { isVerified: true } }
       );
 
@@ -122,6 +125,7 @@ exports.confirmUser = async (req, res) => {
         },
       });
   } catch (err) {
+    // If Mongo is unable to verify the user, return an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {
@@ -134,32 +138,44 @@ exports.confirmUser = async (req, res) => {
 };
 
 exports.resendVerificationEmail = async (req, res) => {
+  // Initialize schema for Joi
   const schema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().email().required().messages({
+      "string.email": `Please provide a proper email address.`,
+      "any.required": `Email cannot be empty.`,
+    }),
   });
-  try {
-    await schema.validate({ email: req.body.email });
-  } catch (err) {
-    return res.redirect("/forgotPassword");
-  }
 
-  const db = Connection.db;
-  const users = db.collection("users");
+  const validation = await schema.validate({ email: req.body.email });
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
+
   try {
-    const user = await users.findOne(
-      { email: req.body.email },
-      {
-        projection: {
-          isVerified: 1,
+    // Finds user based off email
+    const user = await Connection.db
+      .collection("users")
+      .findOne({ email: req.body.email });
+
+    // If the user is already verified, notify them to sign in
+    if (user.isVerified)
+      return res.json({
+        success: {
+          message: "You have already confirmed your account. Please sign in.",
         },
-      }
-    );
-    if (!user) return res.redirect("/forgotPassword");
-    if (user.isVerified) return res.redirect("/confirmationSuccess");
-    const token = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
+      });
+
+    // Generate JWT
+    const token = await jwt.sign({ _id: user._id }, keys.jwtPrivateKey, {
       expiresIn: "1h",
     });
-    let mailOptions = {
+
+    // Set mail settings for SendGrid to send
+    const mailOptions = {
       from: keys.email,
       to: req.body.email,
       subject: "Account Verification - GDrive Clone",
@@ -169,13 +185,28 @@ exports.resendVerificationEmail = async (req, res) => {
         req.headers.host +
         "/confirmRegistration?token=" +
         token +
-        "\n",
+        "\n\n" +
+        "If you have received this email by mistake, simply delete it.",
     };
-    console.log("Send");
-    const t = await sgMail.send(mailOptions);
-    console.log(t);
-    return res.redirect("/verification");
+
+    // Send email via SendGrid
+    await sgMail.send(mailOptions);
+
+    // Return success status back to client
+    return res.status(201).json({
+      success: {
+        message: "Please check your email to confirm your account.",
+      },
+    });
   } catch (err) {
-    console.error(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an issue sending a new confirmation mail. Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
