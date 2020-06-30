@@ -18,7 +18,7 @@ module.exports = (app) => {
   app.get("/confirmRegistration", confirmUser);
 
   // @route POST - Resends an confirmation email to user if they did not their confirm their account.
-  app.post("/api/resendEmailVerification", resendVerificationEmail);
+  app.post("/api/user/resendEmailVerification", resendVerificationEmail);
 
   // @route POST - Logs in the user if they are not authenticated and provide the proper credentials.
   app.post(

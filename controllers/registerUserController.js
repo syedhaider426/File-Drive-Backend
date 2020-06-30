@@ -8,6 +8,7 @@ const returnObjectID = require("../database/returnObjectID");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
 exports.register = async (req, res, next) => {
+  //Create JOI schema
   const schema = Joi.object({
     email: Joi.string().email().required().messages({
       "string.email": `Please provide a proper email address.`,
@@ -19,6 +20,7 @@ exports.register = async (req, res, next) => {
     repeat_password: Joi.ref("password"),
   });
 
+  // Validate user inputs
   const validation = await schema.validate(
     {
       email: req.body.email,
@@ -27,6 +29,8 @@ exports.register = async (req, res, next) => {
     },
     { abortEarly: false }
   );
+
+  // Return error if any inputs do not satisfy the schema
   if (validation.error)
     return res.status(400).json({
       error: {
@@ -35,19 +39,26 @@ exports.register = async (req, res, next) => {
     });
 
   try {
+    // Hash the inputted password
     const password = await bcrypt.hash(req.body.password, 10);
+
+    // Create new user
     const newUser = await Connection.db.collection("users").insertOne({
       email: req.body.email,
       password: password,
       isVerified: false,
     });
+
+    // Create JWT
     const token = await jwt.sign(
-      { id: newUser.insertedId },
+      { _id: newUser.insertedId },
       keys.jwtPrivateKey,
       {
         expiresIn: "1h",
       }
     );
+
+    // Set details for email for SendGrid to send
     const mailOptions = {
       from: keys.email,
       to: req.body.email,
@@ -60,7 +71,11 @@ exports.register = async (req, res, next) => {
         token +
         "\n",
     };
+
+    // Send email
     await sgMail.send(mailOptions);
+
+    // Return success status back to client
     return res.status(201).json({
       success: {
         message:
@@ -74,31 +89,47 @@ exports.register = async (req, res, next) => {
           message: "Email is already registered. Please try again.",
         },
       });
-    else if (err.code === 400) {
-      return res.status(400).json({
-        error: {
-          message:
-            "Confirmation email was not sent. Please register with a valid email address.",
-        },
-      });
-    }
   }
 };
 
 exports.confirmUser = async (req, res) => {
-  const users = Connection.db.collection("users");
-
   try {
+    // Verify token
     const result = await jwt.verify(req.query.token, keys.jwtPrivateKey);
-    if (!result) res.redirect("/verificationEmail");
 
-    await users.updateOne(
-      { _id: returnObjectID(result.id) },
-      { $set: { isVerified: true } }
-    );
-    return res.redirect("/confirmationSuccess");
+    // Throw error if token expired or is invalid
+    if (!result)
+      return res.status(400).json({
+        error: {
+          message:
+            "There was an error confirming your email. Please try again.",
+        },
+      });
+
+    // Verify the user by updating isVerified field in the db
+    const verifiedUser = await Connection.db
+      .collection("users")
+      .updateOne(
+        { _id: returnObjectID(result._id) },
+        { $set: { isVerified: true } }
+      );
+
+    // On successful update, send the 'success' response to the client
+    if (verifiedUser.result.nModified === 1)
+      return res.json({
+        sucess: {
+          message: "You have succesfully registered your account.",
+        },
+      });
   } catch (err) {
-    console.error("Err", err);
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "Account could not be confirmed at this time. Please try again later.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
 
