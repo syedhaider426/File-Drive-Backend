@@ -19,7 +19,7 @@ module.exports = (app) => {
                 <h2>With <code>"Reset Password"</code></h2>
                 <form action="/api/user/resetPassword" method="post" name="ResetPassword">
                   <div><label class="currentPassword">Current Password:</label><input type="text" name="currentPassword" /></div>
-                  <div><label class="newPassword">New Password:</label> <input type="text" name="password" /></div>
+                  <div><label class="newPassword">New Password:</label> <input type="text" name="newPassword" /></div>
                   <div><label class="newPassword">Confirm New Password:</label> <input type="text" name="confirmPassword" /></div>
                   <button type="submit" value="Confirm">Confirm</button>
                 </form>
@@ -29,7 +29,6 @@ module.exports = (app) => {
     res.send(`
                 <h2>With <code>"Reset Email"</code></h2>
                 <form action="/api/user/resetEmail" method="post" name="ResetEmail">
-                  <div><label class="email">Current Email:</label><input type="text" name="email" /></div>     
                   <div><label class="nEmail">New Email:</label><input type="text" name="newEmail" /></div>     
                   <button type="submit" value="Confirm">Confirm</button>
                 </form>

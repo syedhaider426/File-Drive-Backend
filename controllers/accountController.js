@@ -1,5 +1,5 @@
 const Connection = require("../database/Connection");
-const createObjectID = require("../database/returnObjectID");
+const returnObjectID = require("../database/returnObjectID");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const Joi = require("@hapi/joi");
@@ -7,113 +7,185 @@ const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
-//https://stackoverflow.com/questions/54033722/async-await-is-not-working-for-mongo-db-queries
-// You could even ditch the "async" keyword here,
-// because you do not do/need any awaits inside the function.
-// toArray() without a callback function argument already returns a promise.
 exports.getUserByEmail = async (email) => {
-  // Without a callback, toArray() returns a Promise.
-  // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  return await Connection.db.collection("users").findOne({ email: email });
+  return await Connection.db
+    .collection("users")
+    .findOne({ email: email }, { _id: 1 });
 };
 
 exports.getUserById = async (id) => {
-  return await Connection.db.collection("users").findOne(
-    { _id: createObjectID(id) },
-    {
-      projection: {
-        email: 1,
-      },
-    }
-  );
+  return await Connection.db
+    .collection("users")
+    .findOne({ _id: returnObjectID(id) }, { _id: 1 });
 };
 
 exports.resetPassword = async (req, res) => {
+  // Create JOI Schema
   const schema = Joi.object({
-    password: Joi.string().required(),
+    password: Joi.string().required().messages({
+      "string.empty": `Password cannot be empty.`,
+    }),
+    newPassword: Joi.string().required().messages({
+      "string.empty": `Password cannot be empty.`,
+    }),
+    confirmPassword: Joi.valid(Joi.ref("newPassword")).messages({
+      "any.only": `Confirmed password does not match entered password`,
+    }),
   });
-  try {
-    await schema.validate({ password: req.body.password });
-  } catch (err) {
-    return res.redirect("/resetPassword");
-  }
+
+  // Validate user inputs
+  const validation = await schema.validate(
+    {
+      password: req.body.currentPassword,
+      newPassword: req.body.newPassword,
+      confirmPassword: req.body.confirmPassword,
+    },
+    { abortEarly: false }
+  );
+
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
 
   try {
     const users = Connection.db.collection("users");
-    const user = await users.findOne(
-      { _id: req.user._id },
-      {
-        projection: {
-          password: 1,
-        },
-      }
-    );
-    const currentPassword = await bcrypt.compare(
+    // Finds current user's password
+    const user = await users.findOne({ _id: req.user._id }, { password: 1 });
+
+    // Compare hash against current user's password
+    const passwordVerified = await bcrypt.compare(
       req.body.currentPassword,
       user.password
     );
-    if (!currentPassword) return res.redirect("/resetPassword");
-    const hash = await bcrypt.hash(req.body.password, 10);
-    await users.updateOne({ _id: user._id }, { $set: { password: hash } });
-    return res.redirect("/home");
+
+    if (!passwordVerified)
+      return res.status(400).json({
+        error: {
+          message: "Password entered does not match current password",
+        },
+      });
+
+    // Hash the new password
+    const hash = await bcrypt.hash(req.body.newPassword, 10);
+
+    const changedPasswordResult = await users.updateOne(
+      { _id: user._id },
+      { $set: { password: hash } }
+    );
+    if (changedPasswordResult)
+      return res.status(200).json({
+        success: {
+          message: "Password has been successfully changed. Please sign out.",
+        },
+      });
   } catch (err) {
-    console.error(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error resetting your password. Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
 
 exports.resetEmail = async (req, res) => {
+  //Create JOI schema
   const schema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().email().required().messages({
+      "string.empty": `Email cannot be empty.`,
+      "string.email": `Please provide a proper email address.`,
+    }),
   });
-  try {
-    await schema.validate({ email: req.body.email });
-  } catch (err) {
-    return res.redirect("/resetEmail");
-  }
+
+  // Validate user inputs
+  const validation = await schema.validate({ email: req.body.newEmail });
+
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
 
   try {
-    const foundEmail = await Connection.db.collection("users").findOne(
-      { email: req.body.newEmail },
-      {
-        projection: {
-          email: 1,
+    // Checks if the email belongs to any other user
+    const foundEmail = await Connection.db
+      .collection("users")
+      .findOne({ _id: req.body.newEmail }, { _id: 1 });
+
+    // If the email is already registered, throw an error
+    if (foundEmail)
+      return res.status(409).json({
+        error: {
+          message: "Email has already been registered with another user",
         },
-      }
-    );
-    if (foundEmail) return res.redirect("/resetEmail");
-    await users.updateOne(
+      });
+
+    // Updates the current user's email with the new email they entered
+    const updatedEmailResult = await users.updateOne(
       { _id: req.user._id },
       { $set: { email: req.body.newEmail } }
     );
-    return res.redirect("/home");
+
+    // If the email was updated, return a success response to the client
+    if (updatedEmailResult.result.nModified === 1)
+      return res.json({
+        success: {
+          message: "Email has been successfully changed. Please log out.",
+        },
+      });
   } catch (err) {
-    console.error(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message: "There was an issue changing your email. Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
 
 exports.forgotPassword = async (req, res) => {
+  //Create JOI schema
   const schema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().email().required().messages({
+      "string.empty": `Email cannot be empty.`,
+      "string.email": `Please provide a proper email address.`,
+    }),
   });
-  try {
-    await schema.validate({ email: req.body.email });
-  } catch (err) {
-    return res.redirect("/forgotPassword");
-  }
+
+  // Validate user inputs
+  const validation = await schema.validate({ email: req.body.email });
+
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
 
   try {
-    const user = await Connection.db.collection("users").findOne(
-      { email: req.body.email },
-      {
-        projection: {
-          email: 1,
-        },
-      }
-    );
-    if (!user) res.redirect("/forgotPassword");
+    // Gets user's id
+    const user = await Connection.db
+      .collection("users")
+      .findOne({ email: req.body.email }, { _id: 1 });
+
+    // Stores id in token
     const token = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
       expiresIn: "1h",
     });
+
+    // Set mail content for SendGrid to send
     let mailOptions = {
       from: keys.email,
       to: req.body.email,
@@ -127,34 +199,83 @@ exports.forgotPassword = async (req, res) => {
         "\n",
     };
 
+    // Send email via SendGrid
     await sgMail.send(mailOptions);
-    res.redirect("/emailSentConfirmation");
+
+    // Return success status back to client
+    return res.status(200).json({
+      success: {
+        message: "Please check your email to reset your password.",
+      },
+    });
   } catch (err) {
-    console.error(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an issue sending a new confirmation mail. Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
 
 exports.newPassword = async (req, res) => {
+  //Create JOI schema
   const schema = Joi.object({
-    password: Joi.string().required(),
-    repeat_password: Joi.ref("password"),
+    password: Joi.string().required().messages({
+      "string.empty": `Password cannot be empty.`,
+    }),
+    repeat_password: Joi.valid(Joi.ref("password")).messages({
+      "any.only": `Confirmed password does not match entered password`,
+    }),
   });
-  try {
-    await schema.validate({
-      password: req.body.password,
-      repeat_password: req.body.confirmPassword,
+  // Validate user inputs
+  const validation = await schema.validate({
+    password: req.body.password,
+    repeat_password: req.body.confirmPassword,
+  });
+
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
     });
-  } catch (err) {
-    return res.redirect("/newPassword?token=" + req.body.token);
-  }
-  const user = await jwt.verify(req.body.token, keys.jwtPrivateKey);
+
   try {
+    const user = await jwt.verify(req.body.token, keys.jwtPrivateKey);
+    // Throw error if token expired or is invalid
+    if (!user)
+      return res.status(400).json({
+        error: {
+          message:
+            "There was an error resetting your password. Please try again.",
+        },
+      });
+
+    // Hash the new password entered
     const hash = await bcrypt.hash(req.body.password, 10);
-    await Connection.db
+    const changedPasswordResult = await Connection.db
       .collection("users")
       .updateOne({ _id: user.id }, { $set: { password: hash } });
-    return res.redirect("/passwordChangeSuccess");
+    if (changedPasswordResult)
+      return res.status(200).json({
+        success: {
+          message: "Password has been successfully changed. Please log in.",
+        },
+      });
   } catch (err) {
-    console.error("Err", err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error resetting your password. Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };

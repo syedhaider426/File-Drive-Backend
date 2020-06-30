@@ -12,12 +12,14 @@ exports.register = async (req, res, next) => {
   const schema = Joi.object({
     email: Joi.string().email().required().messages({
       "string.email": `Please provide a proper email address.`,
-      "any.required": `Email cannot be empty.`,
+      "string.empty": `Email cannot be empty.`,
     }),
     password: Joi.string().required().messages({
-      "any.required": `Password cannot be empty.`,
+      "string.empty": `Password cannot be empty.`,
     }),
-    repeat_password: Joi.ref("password"),
+    repeat_password: Joi.valid(Joi.ref("password")).messages({
+      "any.only": `Confirmed password does not match entered password`,
+    }),
   });
 
   // Validate user inputs
@@ -124,6 +126,14 @@ exports.confirmUser = async (req, res) => {
           message: "You have succesfully registered your account.",
         },
       });
+    // This error occurs when a user had a confirmation email sent to their account, but never registered a account.
+    else
+      return res.status(404).json({
+        error: {
+          message:
+            "Account could not be confirmed at this time. Please try again later.",
+        },
+      });
   } catch (err) {
     // If Mongo is unable to verify the user, return an error
     if (err.name === "MongoError")
@@ -138,14 +148,14 @@ exports.confirmUser = async (req, res) => {
 };
 
 exports.resendVerificationEmail = async (req, res) => {
-  // Initialize schema for Joi
+  // Create JOI Schema
   const schema = Joi.object({
     email: Joi.string().email().required().messages({
       "string.email": `Please provide a proper email address.`,
       "any.required": `Email cannot be empty.`,
     }),
   });
-
+  // Validate user inputs
   const validation = await schema.validate({ email: req.body.email });
   // Return error if any inputs do not satisfy the schema
   if (validation.error)
@@ -170,11 +180,11 @@ exports.resendVerificationEmail = async (req, res) => {
       });
 
     // Generate JWT
-    const token = await jwt.sign({ _id: user._id }, keys.jwtPrivateKey, {
+    const token = await jwt.sign({ _id: user._id || "" }, keys.jwtPrivateKey, {
       expiresIn: "1h",
     });
 
-    // Set mail settings for SendGrid to send
+    // Set mail content for SendGrid to send
     const mailOptions = {
       from: keys.email,
       to: req.body.email,
