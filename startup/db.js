@@ -5,10 +5,5 @@ const Connection = require("../database/Connection");
  *
  */
 module.exports = async () => {
-  try {
-    await Connection.connectToMongo();
-  } catch (err) {
-    console.log("Unable to connect to DB");
-    process.exit(-1);
-  }
+  await Connection.connectToMongo();
 };
