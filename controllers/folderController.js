@@ -17,14 +17,26 @@ generateFolderArray = (req) => {
   return folders;
 };
 
-exports.getFolders = async (req, res) => {
-  return await Connection.db
-    .collection("folders")
-    .find({ user_id: req.user._id, isTrashed: false })
-    .toArray();
+exports.getFolders = async (req, res, next) => {
+  try {
+    return await Connection.db
+      .collection("folders")
+      .find({ user_id: req.user._id, isTrashed: false })
+      .toArray();
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the file(s). Please try again.",
+        },
+      });
+    else next(err);
+  }
 };
 
-exports.getTrashFolders = async (req, res) => {
+exports.getTrashFolders = async (req, res, next) => {
   try {
     return await Connection.db
       .collection("folders")
@@ -39,14 +51,14 @@ exports.getTrashFolders = async (req, res) => {
       return res.status(404).json({
         error: {
           message:
-            "There was an error retrieving the file(s). Please try again.",
+            "There was an error retrieving the trashed file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.getFavoriteFolders = async (req, res) => {
+exports.getFavoriteFolders = async (req, res, next) => {
   try {
     return await Connection.db
       .collection("folders")
@@ -62,14 +74,14 @@ exports.getFavoriteFolders = async (req, res) => {
       return res.status(404).json({
         error: {
           message:
-            "There was an error retrieving the file(s). Please try again.",
+            "There was an error retrieving the favorited file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.createFolder = async (req, res) => {
+exports.createFolder = async (req, res, next) => {
   // Create JOI Schema
   const schema = Joi.object({
     folder: Joi.string().required().messages({
@@ -106,7 +118,7 @@ exports.createFolder = async (req, res) => {
 
     // If folder was created succesfully, return a success response back to client
     if (createdFolder.insertedId)
-      return res.json({
+      return res.status(201).json({
         success: {
           message: "Folder successfully created",
         },
@@ -119,11 +131,11 @@ exports.createFolder = async (req, res) => {
           message: "There was an error creating this folder. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.renameFolder = async (req, res) => {
+exports.renameFolder = async (req, res, next) => {
   // Create JOI Schema
   const schema = Joi.object({
     folder: Joi.string().required().messages({
@@ -172,11 +184,11 @@ exports.renameFolder = async (req, res) => {
           message: "There was an error renaming this folder. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.moveFolders = async (req, res) => {
+exports.moveFolders = async (req, res, next) => {
   // Folders represent an array of folders that have been selected to be moved to a new location
   const folders = generateFolderArray(req);
   try {
@@ -206,11 +218,11 @@ exports.moveFolders = async (req, res) => {
           message: "There was an error moving the folder(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.deleteFolders = async (req, res) => {
+exports.deleteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be permanently deleted
   const folders = generateFolderArray(req);
 
@@ -255,11 +267,11 @@ exports.deleteFolders = async (req, res) => {
             "There was an error deleting the folder(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.trashFolders = async (req, res) => {
+exports.trashFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be moved temporarily to the trash
   const folders = generateFolderArray(req);
 
@@ -307,11 +319,11 @@ exports.trashFolders = async (req, res) => {
             "There was an error trashing the folder(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.restoreFolders = async (req, res) => {
+exports.restoreFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be restored from the trash
   const folders = generateFolderArray(req);
   try {
@@ -354,11 +366,11 @@ exports.restoreFolders = async (req, res) => {
             "There was an error restoring the folder(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.favoriteFolders = async (req, res) => {
+exports.favoriteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be favorited
   const folders = generateFolderArray(req);
   try {
@@ -382,11 +394,11 @@ exports.favoriteFolders = async (req, res) => {
             "There was an error favoriting the folder(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.unfavoriteFolders = async (req, res) => {
+exports.unfavoriteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be unfavorited
   const folders = generateFolderArray(req);
   try {
@@ -411,6 +423,6 @@ exports.unfavoriteFolders = async (req, res) => {
             "There was an error unfavoriting the folder(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };

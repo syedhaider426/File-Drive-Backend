@@ -1,5 +1,5 @@
 // Sets up the config keys and requires in the SendGrid API
-const keys = require("../config/keys");
+const keys = require("./config/keys");
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
@@ -33,9 +33,20 @@ fs.readdirSync(pagesPath).forEach((file) => {
   require("./pages/" + file)(app);
 });
 
-// Returns a 404 error message if an invalid URL is entered
-app.use((req, res) => {
-  return res.status(404).send({ url: req.originalUrl + " could not be found" });
+app.use((req, res, next) => {
+  const error = new Error(`${req.originalURL} was not found`);
+  error.status = 404;
+  next(error);
+});
+
+// error handler middleware
+app.use((error, req, res, next) => {
+  res.status(error.status || 500).send({
+    error: {
+      status: error.status || 500,
+      message: error.message || "Internal Server Error",
+    },
+  });
 });
 
 //Server listens on the designated port and logs it to the consolee

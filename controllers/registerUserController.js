@@ -1,10 +1,10 @@
 const bcrypt = require("bcrypt");
 const Connection = require("../database/Connection");
-const keys = require("../config/keys");
-const sgMail = require("@sendgrid/mail");
 const Joi = require("@hapi/joi");
 const jwt = require("jsonwebtoken");
 const returnObjectID = require("../database/returnObjectID");
+const keys = require("../config/keys");
+const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
 exports.register = async (req, res, next) => {
@@ -93,11 +93,11 @@ exports.register = async (req, res, next) => {
           message: "Email is already registered. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.confirmUser = async (req, res) => {
+exports.confirmUser = async (req, res, next) => {
   try {
     // Verify token
     const user = await jwt.verify(req.query.token, keys.jwtPrivateKey);
@@ -143,11 +143,11 @@ exports.confirmUser = async (req, res) => {
             "Account could not be confirmed at this time. Please try again later.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.resendVerificationEmail = async (req, res) => {
+exports.resendVerificationEmail = async (req, res, next) => {
   // Create JOI Schema
   const schema = Joi.object({
     email: Joi.string().email().required().messages({
@@ -217,6 +217,6 @@ exports.resendVerificationEmail = async (req, res) => {
             "There was an issue sending a new confirmation mail. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };

@@ -5,7 +5,7 @@ const {
   getUserByEmail,
 } = require("../controllers/accountController");
 
-const user = {
+exports.user = {
   //Stores the id in the req.session.passport.user object
   serialize(user, done) {
     done(null, user._id);
@@ -72,5 +72,3 @@ const user = {
     }
   },
 };
-
-module.exports = user;

@@ -18,7 +18,7 @@ generateFileArray = (req) => {
   return files;
 };
 
-exports.uploadFile = (req, res) => {
+exports.uploadFile = (req, res, next) => {
   //Pass in an array of files
   const form = new formidable.IncomingForm();
   const options = {
@@ -35,7 +35,7 @@ exports.uploadFile = (req, res) => {
 
   // If an error occurs, return an error response back to the client
   form.on("error", (err) => {
-    return res.status(404).json(err);
+    next(err);
   });
 
   // Once it is finishing parsing the file, upload the file to GridFSBucket
@@ -48,7 +48,7 @@ exports.uploadFile = (req, res) => {
   });
 };
 
-exports.getFiles = async (req, res) => {
+exports.getFiles = async (req, res, next) => {
   try {
     // Return the files for the specific user
     return await Connection.db
@@ -68,11 +68,11 @@ exports.getFiles = async (req, res) => {
             "There was an error retrieving the file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.getTrashFiles = async (req, res) => {
+exports.getTrashFiles = async (req, res, next) => {
   try {
     // Return the files that are in the user's trash
     return await Connection.db
@@ -91,11 +91,11 @@ exports.getTrashFiles = async (req, res) => {
             "There was an error retrieving the trashed file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.getFavoriteFiles = async (req, res) => {
+exports.getFavoriteFiles = async (req, res, next) => {
   try {
     // Finds the files that the user favorited
     return await Connection.db
@@ -115,11 +115,11 @@ exports.getFavoriteFiles = async (req, res) => {
             "There was an error retrieving the favorited file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.moveFiles = async (req, res) => {
+exports.moveFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be moved to a new location
   const files = generateFolderArray(req);
 
@@ -151,14 +151,14 @@ exports.moveFiles = async (req, res) => {
           message: "There was an error moving the file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
 /* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
 /* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
 /* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
-exports.deleteFiles = async (req, res) => {
+exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
   const files = generateFolderArray(req);
 
@@ -182,11 +182,11 @@ exports.deleteFiles = async (req, res) => {
               "There was an error deleting the selected file(s). Please try again.",
           },
         });
-      else return res.status(404).json(err);
+      else next(err);
     });
 };
 
-exports.trashFiles = async (req, res) => {
+exports.trashFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be trashed temporarily
   const files = generateFolderArray(req);
 
@@ -219,11 +219,11 @@ exports.trashFiles = async (req, res) => {
             "There was an error trashing the selected file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.restoreFiles = async (req, res) => {
+exports.restoreFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be trashed temporarily
   const files = generateFolderArray(req);
   /*
@@ -253,11 +253,11 @@ exports.restoreFiles = async (req, res) => {
             "There was an error restoring the selected file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.renameFile = async (req, res) => {
+exports.renameFile = async (req, res, next) => {
   try {
     // Finds file and renames it
     const renamedFile = await Connection.gfs.rename(
@@ -279,11 +279,11 @@ exports.renameFile = async (req, res) => {
             "There was an error restoring the selected file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.copyFiles = (req, res) => {
+exports.copyFiles = (req, res, next) => {
   const files = [];
   const filesSelectedLength = req.body.fileID.length;
 
@@ -330,7 +330,7 @@ exports.copyFiles = (req, res) => {
   });
 };
 
-exports.favoriteFiles = async (req, res) => {
+exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFolderArray(req);
 
@@ -353,11 +353,11 @@ exports.favoriteFiles = async (req, res) => {
             "There was an error restoring the selected file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.unfavoriteFiles = async (req, res) => {
+exports.unfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFolderArray(req);
 
@@ -380,6 +380,6 @@ exports.unfavoriteFiles = async (req, res) => {
             "There was an error restoring the selected file(s). Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };

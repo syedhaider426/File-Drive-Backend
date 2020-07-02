@@ -19,7 +19,7 @@ exports.getUserById = async (id) => {
     .findOne({ _id: returnObjectID(id) }, { _id: 1 });
 };
 
-exports.resetPassword = async (req, res) => {
+exports.resetPassword = async (req, res, next) => {
   // Create JOI Schema
   const schema = Joi.object({
     password: Joi.string().required().messages({
@@ -91,11 +91,11 @@ exports.resetPassword = async (req, res) => {
             "There was an error resetting your password. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.resetEmail = async (req, res) => {
+exports.resetEmail = async (req, res, next) => {
   //Create JOI schema
   const schema = Joi.object({
     email: Joi.string().email().required().messages({
@@ -150,11 +150,11 @@ exports.resetEmail = async (req, res) => {
           message: "There was an issue changing your email. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.forgotPassword = async (req, res) => {
+exports.forgotPassword = async (req, res, next) => {
   //Create JOI schema
   const schema = Joi.object({
     email: Joi.string().email().required().messages({
@@ -217,11 +217,11 @@ exports.forgotPassword = async (req, res) => {
             "There was an issue sending a new confirmation mail. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
 
-exports.newPassword = async (req, res) => {
+exports.newPassword = async (req, res, next) => {
   //Create JOI schema
   const schema = Joi.object({
     password: Joi.string().required().messages({
@@ -276,6 +276,6 @@ exports.newPassword = async (req, res) => {
             "There was an error resetting your password. Please try again.",
         },
       });
-    else return res.status(404).json(err);
+    else next(err);
   }
 };
