@@ -1,11 +1,15 @@
-//Requires in the express object
-const express = require("express");
+// Sets up the config keys and requires in the SendGrid API
+const keys = require("../config/keys");
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(keys.sendgrid_api_key);
 
+// Requires in the express and fs module
+const express = require("express");
 const fs = require("fs");
 
-//Creates an instance of express
+// Creates an instance of express
 const app = express();
-const port = require("./config/keys").port;
+const port = keys.port;
 
 // express.json() middleware is used to pass form data into the req.body
 app.use(express.json());
@@ -36,3 +40,20 @@ app.use((req, res) => {
 
 //Server listens on the designated port and logs it to the consolee
 app.listen(port, () => console.log(`Connected on port ${port}`));
+
+// If there is an uncaught exception, send error stack to email
+process.on("uncaughtException", async (err) => {
+  // Set mail content for SendGrid to send
+  const mailOptions = {
+    from: keys.email,
+    to: keys.email,
+    subject: "****ERROR WITH****** - GDrive Clone",
+    text: new Date().toUTCString() + `${err.message}` + "\n\n" + err.stack,
+  };
+
+  // Send email via SendGrid
+  await sgMail.send(mailOptions);
+
+  // Close instance (which will be restarted by PM2 after it is closed)
+  process.exit(1);
+});
