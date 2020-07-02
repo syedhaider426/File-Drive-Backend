@@ -3,232 +3,397 @@ const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 
+generateFileArray = (req) => {
+  const files = [];
+
+  /* If only one file is selected, the type of the fileID is a string; otherwise
+   * if two or more files are selected, it will be an array
+   */
+  if (typeof req.body.fileID === "string")
+    files.push(returnObjectID(req.body.fileID));
+  else
+    req.body.fileID.forEach((file) => {
+      files.push(returnObjectID(file));
+    });
+  return files;
+};
+
 exports.uploadFile = (req, res) => {
   //Pass in an array of files
   const form = new formidable.IncomingForm();
-  (files = []), (paths = []);
+  const files = [];
+  const paths = [];
+
+  // File has been received
   form.on("file", (field, file) => {
     files.push(file.name);
     paths.push(file.path);
   });
-  form.parse(req);
+
+  // If an error occurs, return an error response back to the client
+  form.on("error", (err) => {
+    return res.status(404).json(err);
+  });
+
+  // Once it is finishing parsing the file, upload the file to GridFSBucket
   form.once("end", () => {
     let options = {
-      metadata: {
-        user: req.user._id,
-        isTrashed: false,
-        lastUpdatedOn: new Date(),
-        folder: returnObjectID(req.params.folder),
-      },
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.params.folder),
     };
+
     let filesLength = files.length;
-    console.log(files.length);
     for (let i = 0; i < filesLength; i++) {
+      // Write Stream that writes to the GridFSBucket
       let writestream = Connection.gfs.openUploadStream(files[i], options);
-      fs.createReadStream(paths[i]).pipe(writestream);
+
+      // FS module readstream that reads the file and pipes it to the write stream
+      fs.createReadStream(paths[i])
+        .pipe(writestream)
+        .once("finish", () => {
+          return res.json({
+            success: {
+              message: "Files were sucessfully uploaded",
+            },
+          });
+        });
     }
-    if (req.params.folder) return res.redirect(`/folder/${req.params.folder}`);
-    else return res.redirect("/home");
   });
 };
 
 exports.getFiles = async (req, res) => {
-  const files = Connection.db.collection("fs.files");
-  // Without a callback, toArray() returns a Promise.
-  // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  //https://stackoverflow.com/questions/16002659/how-to-query-nested-objects
   try {
-    return await files
+    // Return the files for the specific user
+    return await Connection.db
+      .collection("fs.files")
       .find({
-        "metadata.user": req.user._id,
-        "metadata.folder": returnObjectID(req.params.folder),
-        "metadata.isTrashed": false,
+        user_id: req.user._id,
+        folder_id: returnObjectID(req.params.folder),
+        isTrashed: false,
       })
       .toArray();
   } catch (err) {
-    console.log(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
+};
+
+exports.getTrashFiles = async (req, res) => {
+  try {
+    // Return the files that are in the user's trash
+    return await Connection.db
+      .collection("fs.files")
+      .find({
+        user_id: req.user._id,
+        isTrashed: true,
+      })
+      .toArray();
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the trashed file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
+};
+
+exports.getFavoriteFiles = async (req, res) => {
+  try {
+    // Finds the files that the user favorited
+    return await Connection.db
+      .collection("fs.files")
+      .find({
+        user_id: req.user._id,
+        isFavorited: true,
+        isTrashed: false,
+      })
+      .toArray();
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the favorited file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
 
 exports.moveFiles = async (req, res) => {
-  //Get file collection
-  const db = Connection.db;
-  const files = db.collection("fs.files");
-  const fileArray = [];
+  // Files represent an array of files that have been selected to be moved to a new location
+  const files = generateFolderArray(req);
 
-  req.body.files.forEach((file) => {
-    fileArray.push(returnObjectID(file));
-  });
   try {
-    files
+    const movedFiles = await Connection.db
+      .collection("fs.files")
       .update(
         {
-          _id: { $in: fileArray },
+          _id: { $in: files },
         },
         {
           $set: {
-            "metadata.folder": returnObjectID(req.body.folder),
+            folder_id: returnObjectID(req.body.folder),
           },
         }
       )
-      .toArray()
-      .then((res) => {
-        if (!res) return res.redirect("/home");
-        return res.redirect("/viewFolders");
+      .toArray();
+    if (movedFiles.result.nModified > 0)
+      return res.json({
+        success: {
+          message: "Files were successfully moved",
+        },
       });
   } catch (err) {
-    console.log(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message: "There was an error moving the file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
-
-  //updates the folder field
 };
 
 /* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
 /* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
 /* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
 exports.deleteFiles = async (req, res) => {
-  const fileArray = [];
+  // Files represent an array of files that have been selected to be deleted permanently
+  const files = generateFolderArray(req);
 
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else req.body.files.forEach((file) => fileArray.push(returnObjectID(file)));
-  try {
-    fileArray.map(async (file) => {
-      await Connection.gfs.delete(file);
+  const deletedFilesPromise = files.map(async (file) => {
+    await Connection.gfs.delete(file);
+  });
+  Promise.all(deletedFilesPromise)
+    .then(() => {
+      return res.json({
+        success: {
+          message: "All selected files were deleted succesfully",
+        },
+      });
+    })
+    .catch((err) => {
+      // If there is an error with Mongo, throw an error
+      if (err.name === "MongoError")
+        return res.status(404).json({
+          error: {
+            message:
+              "There was an error deleting the selected file(s). Please try again.",
+          },
+        });
+      else return res.status(404).json(err);
     });
-    res.redirect("/viewFolders");
-  } catch (err) {
-    console.log(err);
-  }
 };
 
 exports.trashFiles = async (req, res) => {
-  const fileArray = [];
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else req.body.files.forEach((file) => fileArray.push(returnObjectID(file)));
-  //Find files and set isTrashed to true
+  // Files represent an array of files that have been selected to be trashed temporarily
+  const files = generateFolderArray(req);
+
   try {
-    const result = await Connection.db.collection("fs.files").updateOne(
+    /*
+     * Trash the files
+     * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
+     * will expire after 30 days, therefore, deleting the folder and file
+     */
+    const trashedFiles = await Connection.db.collection("fs.files").updateOne(
       {
-        _id: { $in: fileArray },
+        _id: { $in: files },
       },
       {
         $set: { isTrashed: true, trashedAt: new Date() },
       }
     );
-    if (!result) return res.redirect("/viewFolders");
-    res.redirect("/viewFolders");
+    if (trashedFiles.result.nModified > 0)
+      return res.json({
+        success: {
+          message: "Files were succesfully trashed",
+        },
+      });
   } catch (err) {
-    console.log(err);
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error trashing the selected file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
   }
 };
 
-exports.getTrashFiles = async (req, res) => {
-  const result = await Connection.db
-    .collection("fs.files")
-    .find({
-      "metadata.user": req.user._id,
-      isTrashed: true,
-    })
-    .toArray();
-  return result;
-};
-
 exports.restoreFiles = async (req, res) => {
-  const fileArray = [];
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else req.body.files.forEach((file) => fileArray.push(returnObjectID(file)));
-  const result = await Connection.db.collection("fs.files").updateMany(
-    {
-      "metadata.user": req.user._id,
-      _id: { $in: fileArray },
-    },
-    { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
-  );
-  if (!result) return res.redirect("/trash");
-  return res.redirect("/viewFolders");
+  // Files represent an array of files that have been selected to be trashed temporarily
+  const files = generateFolderArray(req);
+  /*
+   * Restore the folders
+   * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
+   */
+  try {
+    const restoredFiles = await Connection.db.collection("fs.files").updateMany(
+      {
+        user_id: req.user._id,
+        _id: { $in: files },
+      },
+      { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
+    );
+    if (restoredFiles.result.nModified > 0)
+      return res.json({
+        success: {
+          message: "Files were succesfully restored",
+        },
+      });
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error restoring the selected file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
 };
 
 exports.renameFile = async (req, res) => {
-  const result = await Connection.gfs.rename(
-    returnObjectID(req.body.fileID),
-    req.body.newName
-  );
-  if (!result) return res.redirect("/error");
-  return res.redirect("/viewFolders");
+  try {
+    // Finds file and renames it
+    const renamedFile = await Connection.gfs.rename(
+      returnObjectID(req.body.fileID),
+      req.body.newName
+    );
+    if (renamedFile.result.nModified > 0)
+      return res.json({
+        success: {
+          message: "File was sucessfully renamed",
+        },
+      });
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error restoring the selected file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
 };
 
 exports.copyFiles = (req, res) => {
-  let fileArray = [];
-  let filesSelectedLength = req.body.fileID.length;
+  const files = [];
+  const filesSelectedLength = req.body.fileID.length;
+
+  // Pushes the files id and name into the 'files' array
   if (filesSelectedLength === 1) {
-    fileArray.push({
+    files.push({
       id: returnObjectID(req.body.fileID),
       filename: req.body.fileName,
     });
   } else {
     for (let i = 0; i < filesSelectedLength; ++i) {
-      fileArray.push({
+      files.push({
         id: returnObjectID(req.body.fileID[i]),
         filename: req.body.fileName[i],
       });
     }
   }
 
-  let options = {
-    metadata: {
-      user: req.user._id,
-      lastUpdatedOn: new Date(),
-      folder: returnObjectID(req.body.folder),
-    },
+  const options = {
+    user_id: req.user._id,
+    folder_id: returnObjectID(req.body.folder),
   };
   /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
-  const gfs = Connection.gfs;
-  fileArray.map((file) => {
-    let downloadStream = gfs.openDownloadStream(returnObjectID(file.id));
-    let writeStream = gfs.openUploadStream(`Copy of ${file.filename}`, options);
+  files.map((file) => {
+    // Downloads the file from the GridFSBucket
+    const downloadStream = Connection.gfs.openDownloadStream(
+      returnObjectID(file.id)
+    );
+
+    // Uploads the file to GridFSBucket
+    const writeStream = Connection.gfs.openUploadStream(
+      `Copy of ${file.filename}`,
+      options
+    );
+
+    // Bytes get downloaded and written into the writestream
     downloadStream.pipe(writeStream).once("finish", () => {
-      console.log("finished");
-      res.redirect("/viewFolders");
+      return res.json({
+        success: {
+          message: "Files were sucessfully copied",
+        },
+      });
     });
   });
 };
 
 exports.favoriteFiles = async (req, res) => {
-  const files = [];
-  if (typeof req.body.files === "string")
-    files.push(returnObjectID(req.body.files));
-  else req.body.files.forEach((folder) => files.push(returnObjectID(folder)));
+  // Files represent an array of files that have been selected to be favorited
+  const files = generateFolderArray(req);
 
-  const result = await Connection.db
-    .collection("fs.files")
-    .updateMany({ _id: { $in: files } }, { $set: { isFavorited: true } });
-  if (!result) return res.redirect("/error");
-  return res.redirect("/viewFolders");
+  try {
+    const favoritedFiles = await Connection.db
+      .collection("fs.files")
+      .updateMany({ _id: { $in: files } }, { $set: { isFavorited: true } });
+    if (favoritedFiles.result.nModified > 0)
+      return res.json({
+        success: {
+          message: "File was sucessfully renamed",
+        },
+      });
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error restoring the selected file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
 };
 
 exports.unfavoriteFiles = async (req, res) => {
-  const files = [];
-  if (typeof req.body.files === "string")
-    files.push(returnObjectID(req.body.files));
-  else req.body.files.forEach((folder) => files.push(returnObjectID(folder)));
+  // Files represent an array of files that have been selected to be unfavorited
+  const files = generateFolderArray(req);
 
-  const result = await Connection.db
-    .collection("fs.files")
-    .updateMany({ _id: { $in: files } }, { $set: { isFavorited: false } });
-  if (!result) return res.redirect("/error");
-  return res.redirect("/viewFolders");
-};
-
-exports.getFavoriteFiles = async (req, res) => {
-  return await Connection.db
-    .collection("fs.files")
-    .find({
-      "metadata.user": req.user._id,
-      isFavorited: true,
-      isTrashed: false,
-    })
-    .toArray();
+  try {
+    const unfavoritedFiles = await Connection.db
+      .collection("fs.files")
+      .updateMany({ _id: { $in: files } }, { $set: { isFavorited: false } });
+    if (unfavoritedFiles.result.nModified > 0)
+      return res.json({
+        success: {
+          message: "Files were sucessfully unfavorited",
+        },
+      });
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error restoring the selected file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
 };

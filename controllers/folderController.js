@@ -3,7 +3,6 @@ const Joi = require("@hapi/joi");
 const returnObjectID = require("../database/returnObjectID");
 
 generateFolderArray = (req) => {
-  // Folders represent an array of folders that will be moved temporarily to the trash
   const folders = [];
 
   /* If only one folder is selected, the type of the folderID is a string; otherwise
@@ -26,24 +25,48 @@ exports.getFolders = async (req, res) => {
 };
 
 exports.getTrashFolders = async (req, res) => {
-  return await Connection.db
-    .collection("folders")
-    .find({
-      user_id: req.user._id,
-      isTrashed: true,
-    })
-    .toArray();
+  try {
+    return await Connection.db
+      .collection("folders")
+      .find({
+        user_id: req.user._id,
+        isTrashed: true,
+      })
+      .toArray();
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
 };
 
 exports.getFavoriteFolders = async (req, res) => {
-  return await Connection.db
-    .collection("folders")
-    .find({
-      user_id: req.user._id,
-      isFavorited: true,
-      isTrashed: false,
-    })
-    .toArray();
+  try {
+    return await Connection.db
+      .collection("folders")
+      .find({
+        user_id: req.user._id,
+        isFavorited: true,
+        isTrashed: false,
+      })
+      .toArray();
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the file(s). Please try again.",
+        },
+      });
+    else return res.status(404).json(err);
+  }
 };
 
 exports.createFolder = async (req, res) => {
