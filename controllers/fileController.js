@@ -21,13 +21,16 @@ generateFileArray = (req) => {
 exports.uploadFile = (req, res) => {
   //Pass in an array of files
   const form = new formidable.IncomingForm();
-  const files = [];
-  const paths = [];
+  const options = {
+    user_id: req.user._id,
+    isTrashed: false,
+    folder_id: returnObjectID(req.params.folder),
+  };
 
   // File has been received
   form.on("file", (field, file) => {
-    files.push(file.name);
-    paths.push(file.path);
+    const writestream = Connection.gfs.openUploadStream(file.name, options);
+    fs.createReadStream(file.path).pipe(writestream);
   });
 
   // If an error occurs, return an error response back to the client
@@ -37,28 +40,11 @@ exports.uploadFile = (req, res) => {
 
   // Once it is finishing parsing the file, upload the file to GridFSBucket
   form.once("end", () => {
-    let options = {
-      user_id: req.user._id,
-      isTrashed: false,
-      folder_id: returnObjectID(req.params.folder),
-    };
-
-    let filesLength = files.length;
-    for (let i = 0; i < filesLength; i++) {
-      // Write Stream that writes to the GridFSBucket
-      let writestream = Connection.gfs.openUploadStream(files[i], options);
-
-      // FS module readstream that reads the file and pipes it to the write stream
-      fs.createReadStream(paths[i])
-        .pipe(writestream)
-        .once("finish", () => {
-          return res.json({
-            success: {
-              message: "Files were sucessfully uploaded",
-            },
-          });
-        });
-    }
+    return res.json({
+      success: {
+        message: "Files were sucessfully uploaded",
+      },
+    });
   });
 };
 
