@@ -34,7 +34,7 @@ fs.readdirSync(pagesPath).forEach((file) => {
 });
 
 app.use((req, res, next) => {
-  const error = new Error(`${req.originalUrl:} was not found`);
+  const error = new Error(`${req.originalUrl} was not found`);
   error.status = 404;
   next(error);
 });
