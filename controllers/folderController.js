@@ -19,10 +19,11 @@ generateFolderArray = (req) => {
 
 exports.getFolders = async (req, res, next) => {
   try {
-    return await Connection.db
+    const result = await Connection.db
       .collection("folders")
       .find({ user_id: req.user._id, isTrashed: false })
       .toArray();
+    return res.json(result);
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -38,13 +39,14 @@ exports.getFolders = async (req, res, next) => {
 
 exports.getTrashFolders = async (req, res, next) => {
   try {
-    return await Connection.db
+    const result = await Connection.db
       .collection("folders")
       .find({
         user_id: req.user._id,
         isTrashed: true,
       })
       .toArray();
+    return res.json(result);
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -60,7 +62,7 @@ exports.getTrashFolders = async (req, res, next) => {
 
 exports.getFavoriteFolders = async (req, res, next) => {
   try {
-    return await Connection.db
+    const result = await Connection.db
       .collection("folders")
       .find({
         user_id: req.user._id,
@@ -68,6 +70,7 @@ exports.getFavoriteFolders = async (req, res, next) => {
         isTrashed: false,
       })
       .toArray();
+    return res.json(result);
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")

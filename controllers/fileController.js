@@ -28,7 +28,6 @@ exports.uploadFile = (req, res, next) => {
       folder_id: returnObjectID(req.params.folder),
     },
   };
-
   // File has been received
   form.on("file", (field, file) => {
     const writestream = Connection.gfs.openUploadStream(file.name, options);
@@ -55,8 +54,7 @@ exports.uploadFile = (req, res, next) => {
 
 exports.getFiles = async (req, res, next) => {
   try {
-    console.log("Made it here");
-    // Return the files for the specific user
+    //Return the files for the specific user
     const result = await Connection.db
       .collection("fs.files")
       .find({
@@ -65,8 +63,7 @@ exports.getFiles = async (req, res, next) => {
         "metadata.isTrashed": false,
       })
       .toArray();
-    console.log(result);
-    return result;
+    return res.json(result);
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -83,13 +80,14 @@ exports.getFiles = async (req, res, next) => {
 exports.getTrashFiles = async (req, res, next) => {
   try {
     // Return the files that are in the user's trash
-    return await Connection.db
+    const result = await Connection.db
       .collection("fs.files")
       .find({
         "metadata.user_id": req.user._id,
         "metadata.isTrashed": true,
       })
       .toArray();
+    return res.json(result);
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -106,7 +104,7 @@ exports.getTrashFiles = async (req, res, next) => {
 exports.getFavoriteFiles = async (req, res, next) => {
   try {
     // Finds the files that the user favorited
-    return await Connection.db
+    const result = await Connection.db
       .collection("fs.files")
       .find({
         "metadata.user_id": req.user._id,
@@ -114,6 +112,7 @@ exports.getFavoriteFiles = async (req, res, next) => {
         "metadata.isTrashed": false,
       })
       .toArray();
+    res.json(result);
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
