@@ -97,7 +97,7 @@ module.exports = (app) => {
 <button id="createFolder" type="submit" value="Create Folder">Create Folder</button>
 </form>`;
     htmlString += `<div><a href="/home">Home</a></div>`;
-    res.send(htmlString);
+    //res.send(htmlString);
   });
 
   app.get("/folder/:folder", checkAuthenticated, async (req, res) => {

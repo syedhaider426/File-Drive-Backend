@@ -52,6 +52,39 @@ exports.uploadFile = (req, res, next) => {
   });
 };
 
+exports.getFilesAndFolders = async (req, res, next) => {
+  try {
+    //Return the files for the specific user
+    const files = await Connection.db
+      .collection("fs.files")
+      .find({
+        "metadata.user_id": req.user._id,
+        "metadata.folder_id": returnObjectID(req.params.folder),
+        "metadata.isTrashed": false,
+      })
+      .toArray();
+    const folders = await Connection.db
+      .collection("folders")
+      .find({ user_id: req.user._id, isTrashed: false })
+      .toArray();
+    const result = {
+      files,
+      folders,
+    };
+    return res.json(result);
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error retrieving the file(s). Please try again.",
+        },
+      });
+    else next(err);
+  }
+};
+
 exports.getFiles = async (req, res, next) => {
   try {
     //Return the files for the specific user
