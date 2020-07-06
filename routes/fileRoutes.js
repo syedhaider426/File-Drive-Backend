@@ -9,6 +9,7 @@ const {
   restoreFiles,
   favoriteFiles,
   unfavoriteFiles,
+  getFiles,
 } = require("../controllers/fileController");
 
 /**
@@ -45,4 +46,7 @@ module.exports = (app) => {
 
   // @route POST - Unfavorites a folder if the user is authenticated.
   app.post("/api/files/unfavorite", checkAuthenticated, unfavoriteFiles);
+
+  // @route GET - Gets files for users
+  app.get("/api/files/get", checkAuthenticated, getFiles);
 };

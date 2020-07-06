@@ -38,18 +38,13 @@ const user = {
       }),
     });
     // Validate user inputs
-    const validation = await schema.validate({
-      password: req.body.password,
-      repeat_password: req.body.confirmPassword,
-    });
 
+    const validation = await schema.validate({
+      email,
+      password,
+    });
     // Return error if any inputs do not satisfy the schema
-    if (validation.error)
-      return res.status(400).json({
-        error: {
-          message: validation.error,
-        },
-      });
+    if (validation.error) return done(null, false);
 
     try {
       //Finds user based off their email

@@ -22,7 +22,7 @@ module.exports = function (app) {
       secret: passportKey,
       resave: false,
       saveUninitialized: true,
-      name: "sessionID",
+      name: "session_ID",
     })
   );
 

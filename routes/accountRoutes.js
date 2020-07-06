@@ -23,4 +23,9 @@ module.exports = (app) => {
 
   // @route POST - Saves the user's new password if a valid token is provided.
   app.post("/api/user/newPassword", newPassword);
+
+  // @route GET - Saves the user's new password if a valid token is provided.
+  app.get("/getUser", (req, res) => {
+    return res.json({ loggedIn: req.isAuthenticated() });
+  });
 };
