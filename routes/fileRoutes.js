@@ -11,6 +11,8 @@ const {
   unfavoriteFiles,
   getFiles,
   getFilesAndFolders,
+  getFavoriteFilesAndFolders,
+  getTrashFilesAndFolders,
 } = require("../controllers/fileController");
 
 /**
@@ -48,6 +50,12 @@ module.exports = (app) => {
   // @route POST - Unfavorites a folder if the user is authenticated.
   app.post("/api/files/unfavorite", checkAuthenticated, unfavoriteFiles);
 
-  // @route GET - Gets files for users
-  app.get("/api/files/get", getFilesAndFolders);
+  // @route GET - Gets files and folders for users
+  app.get("/api/files/getAll", getFilesAndFolders);
+
+  // @route GET - Gets favorited files and folders for users
+  app.get("/api/files/getFavorite", getFavoriteFilesAndFolders);
+
+  // @route GET - Gets trashed files and folders for users
+  app.get("/api/files/getTrash", getTrashFilesAndFolders);
 };
