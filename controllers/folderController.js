@@ -232,7 +232,7 @@ exports.deleteFolders = async (req, res, next) => {
       .collection("fs.files")
       .find(
         {
-          folder_id: { $in: folders },
+          "metadata.folder_id": { $in: folders },
         },
         {
           _id: 1,
@@ -296,10 +296,10 @@ exports.trashFolders = async (req, res, next) => {
         .collection("fs.files")
         .updateMany(
           {
-            folder_id: { $in: folders },
-            user_id: req.user._id,
+            "metadata.folder_id": { $in: folders },
+            "metadata.user_id": req.user._id,
           },
-          { $set: { isTrashed: true, trashedAt: new Date() } }
+          { $set: { "metaadata.isTrashed": true, trashedAt: new Date() } }
         );
 
       // If the files were successfully trashed, return a success response back to the client
@@ -343,10 +343,10 @@ exports.restoreFolders = async (req, res, next) => {
         .collection("fs.files")
         .updateMany(
           {
-            user_id: req.user._id,
-            folder_id: { $in: folders },
+            "metadata.user_id": req.user._id,
+            "metadata.folder_id": { $in: folders },
           },
-          { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
+          { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
         );
       // If files are restored succesfully, return a sucess response back to the client
       if (restoredFiles.result.nModified > 0) {

@@ -22,9 +22,11 @@ exports.uploadFile = (req, res, next) => {
   //Pass in an array of files
   const form = new formidable.IncomingForm();
   const options = {
-    user_id: req.user._id,
-    isTrashed: false,
-    folder_id: returnObjectID(req.params.folder),
+    metadata: {
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.params.folder),
+    },
   };
 
   // File has been received
@@ -32,6 +34,9 @@ exports.uploadFile = (req, res, next) => {
     const writestream = Connection.gfs.openUploadStream(file.name, options);
     fs.createReadStream(file.path).pipe(writestream);
   });
+
+  //This is necessary to trigger the events
+  form.parse(req);
 
   // If an error occurs, return an error response back to the client
   form.on("error", (err) => {
@@ -50,15 +55,18 @@ exports.uploadFile = (req, res, next) => {
 
 exports.getFiles = async (req, res, next) => {
   try {
+    console.log("Made it here");
     // Return the files for the specific user
-    return await Connection.db
+    const result = await Connection.db
       .collection("fs.files")
       .find({
-        user_id: req.user._id,
-        folder_id: returnObjectID(req.params.folder),
-        isTrashed: false,
+        "metadata.user_id": req.user._id,
+        "metadata.folder_id": returnObjectID(req.params.folder),
+        "metadata.isTrashed": false,
       })
       .toArray();
+    console.log(result);
+    return result;
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -78,8 +86,8 @@ exports.getTrashFiles = async (req, res, next) => {
     return await Connection.db
       .collection("fs.files")
       .find({
-        user_id: req.user._id,
-        isTrashed: true,
+        "metadata.user_id": req.user._id,
+        "metadata.isTrashed": true,
       })
       .toArray();
   } catch (err) {
@@ -101,9 +109,9 @@ exports.getFavoriteFiles = async (req, res, next) => {
     return await Connection.db
       .collection("fs.files")
       .find({
-        user_id: req.user._id,
+        "metadata.user_id": req.user._id,
         isFavorited: true,
-        isTrashed: false,
+        "metadata.isTrashed": false,
       })
       .toArray();
   } catch (err) {
@@ -201,7 +209,7 @@ exports.trashFiles = async (req, res, next) => {
         _id: { $in: files },
       },
       {
-        $set: { isTrashed: true, trashedAt: new Date() },
+        $set: { "metadata.isTrashed": true, trashedAt: new Date() },
       }
     );
     if (trashedFiles.result.nModified > 0)
@@ -233,10 +241,10 @@ exports.restoreFiles = async (req, res, next) => {
   try {
     const restoredFiles = await Connection.db.collection("fs.files").updateMany(
       {
-        user_id: req.user._id,
+        "metadata.user_id": req.user._id,
         _id: { $in: files },
       },
-      { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
+      { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
     );
     if (restoredFiles.result.nModified > 0)
       return res.json({

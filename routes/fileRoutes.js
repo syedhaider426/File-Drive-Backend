@@ -18,10 +18,10 @@ const {
  */
 module.exports = (app) => {
   // @route POST - Uploads a file or files if the user is authenticated.
-  app.post("/api/upload", checkAuthenticated, uploadFile);
+  app.post("/api/files/upload", checkAuthenticated, uploadFile);
 
   // @route POST - Uploads a file or files to a specified folder if the folder exists and the user is authenticated.
-  app.post("/api/upload/:folder", checkAuthenticated, uploadFile);
+  app.post("/api/files/upload/:folder", checkAuthenticated, uploadFile);
 
   // @route POST - Moves a file or files to designated folder if the user is authenticated.
   app.post("/api/files/move", checkAuthenticated, moveFiles);
@@ -48,5 +48,5 @@ module.exports = (app) => {
   app.post("/api/files/unfavorite", checkAuthenticated, unfavoriteFiles);
 
   // @route GET - Gets files for users
-  app.get("/api/files/get", checkAuthenticated, getFiles);
+  app.get("/api/files/get", getFiles);
 };
