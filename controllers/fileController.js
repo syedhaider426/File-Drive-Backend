@@ -2,7 +2,7 @@ const Connection = require("../database/Connection");
 const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
-
+const { trashFolders, deleteFolders } = require("./folderController");
 generateFileArray = (req) => {
   const files = [];
   if (req.body.selectedFiles.length > 0)
@@ -196,17 +196,18 @@ exports.moveFiles = async (req, res, next) => {
 exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
   const files = generateFileArray(req);
-  const folders = generateFolderArray(req);
   const deletedFilesPromise = files.map(async (file) => {
     await Connection.gfs.delete(file);
   });
-  Promise.all(deletedFilesPromise)
-    .then(() => {
-      return res.json({
-        success: {
-          message: "All selected files were deleted succesfully",
-        },
-      });
+  return Promise.all(deletedFilesPromise)
+    .then(async () => {
+      return await Connection.db
+        .collection("fs.files")
+        .find({
+          "metadata.user_id": req.user._id,
+          "metadata.isTrashed": true,
+        })
+        .toArray();
     })
     .catch((err) => {
       // If there is an error with Mongo, throw an error
@@ -221,14 +222,27 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
-exports.getTrashFiles = async (req, res, next) => {
+exports.deleteFilesAndFolders = async (req, res, next) => {
+  const files = await this.deleteFiles(req, res, next);
+  const folders = await deleteFolders(req, res, next);
+  return res.json({
+    files,
+    folders,
+    success: {
+      message: "Files/folders were succesfully deleted",
+    },
+  });
+};
+
+exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
   if (files.length === 0) return [];
   try {
     /*
      * Trash the files
      * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
-     * will expire after 30 days, therefore, deleting the folder and file
+     * will expire after 30 days, ther
+     * efore, deleting the folder and file
      */
     let trashedFiles = await Connection.db.collection("fs.files").updateMany(
       { _id: { $in: files } },
@@ -259,44 +273,9 @@ exports.getTrashFiles = async (req, res, next) => {
   }
 };
 
-exports.getTrashFolders = async (req, res, next) => {
-  const folders = generateFolderArray(req);
-  if (folders.length === 0) return [];
-  try {
-    let trashedFolders = await Connection.db.collection("folders").updateMany(
-      {
-        _id: { $in: folders },
-      },
-      {
-        $set: { isTrashed: true, trashedAt: new Date() },
-      }
-    );
-    if (trashedFolders.result.nModified > 0)
-      //Return the folders for the specific user
-      return await Connection.db
-        .collection("folders")
-        .find({
-          user_id: req.user._id,
-          parent_id: returnObjectID(req.body.folder),
-          isTrashed: false,
-        })
-        .toArray();
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error restoring the selected file(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
 exports.trashFilesAndFolders = async (req, res, next) => {
-  const files = await this.getTrashFiles();
-  const folders = await this.getTrashFolders();
+  const files = await this.trashFiles(req, res, next);
+  const folders = await trashFolders(req, res, next);
   return res.json({
     files,
     folders,
