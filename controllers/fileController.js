@@ -196,7 +196,7 @@ exports.moveFiles = async (req, res, next) => {
 exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
   const files = generateFileArray(req);
-
+  const folders = generateFolderArray(req);
   const deletedFilesPromise = files.map(async (file) => {
     await Connection.gfs.delete(file);
   });
@@ -214,91 +214,96 @@ exports.deleteFiles = async (req, res, next) => {
         return res.status(404).json({
           error: {
             message:
-              "There was an error deleting the selected file(s). Please try again.",
+              "There was an error deleting the selected file(s)/folder(s). Please try again.",
           },
         });
       else next(err);
     });
 };
 
-exports.trashFilesAndFolders = async (req, res, next) => {
-  // Files represent an array of files that have been selected to be trashed temporarily
+exports.getTrashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
-  const folders = generateFolderArray(req);
+  if (files.length === 0) return [];
   try {
     /*
      * Trash the files
      * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
      * will expire after 30 days, therefore, deleting the folder and file
      */
-    let trashedFiles;
-    let trashedFolders;
-    let currentFiles = [];
-    let currentFolders = [];
-
-    /**
-     * Trash files
-     */
-    if (files.length > 0) {
-      trashedFiles = await Connection.db.collection("fs.files").updateMany(
-        { _id: { $in: files } },
-        {
-          $set: { "metadata.isTrashed": true, trashedAt: new Date() },
-        }
-      );
-      if (trashedFiles.result.nModified > 0)
-        //Return the files for the specific user
-        currentFiles = await Connection.db
-          .collection("fs.files")
-          .find({
-            "metadata.user_id": req.user._id,
-            "metadata.folder_id": returnObjectID(req.body.folder),
-            "metadata.isTrashed": false,
-          })
-          .toArray();
-    }
-
-    /**
-     * Trash folders
-     */
-    if (folders.length > 0) {
-      trashedFolders = await Connection.db.collection("folders").updateMany(
-        {
-          _id: { $in: folders },
-        },
-        {
-          $set: { isTrashed: true, trashedAt: new Date() },
-        }
-      );
-      if (trashedFolders.result.nModified > 0)
-        //Return the folders for the specific user
-        currentFolders = await Connection.db
-          .collection("folders")
-          .find({
-            user_id: req.user._id,
-            parent_id: returnObjectID(req.body.folder),
-            isTrashed: false,
-          })
-          .toArray();
-    }
-    return res.json({
-      files: currentFiles,
-      folders: currentFolders,
-      success: {
-        message: "Files/folders were succesfully trashed",
-      },
-    });
+    let trashedFiles = await Connection.db.collection("fs.files").updateMany(
+      { _id: { $in: files } },
+      {
+        $set: { "metadata.isTrashed": true, trashedAt: new Date() },
+      }
+    );
+    if (trashedFiles.result.nModified > 0)
+      //Return the files for the specific user
+      return await Connection.db
+        .collection("fs.files")
+        .find({
+          "metadata.user_id": req.user._id,
+          "metadata.folder_id": returnObjectID(req.body.folder),
+          "metadata.isTrashed": false,
+        })
+        .toArray();
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {
           message:
-            "There was an error trashing the selected file(s) or folder(s). Please try again.",
+            "There was an error restoring the selected file(s). Please try again.",
         },
       });
     else next(err);
   }
+};
+
+exports.getTrashFolders = async (req, res, next) => {
+  const folders = generateFolderArray(req);
+  if (folders.length === 0) return [];
+  try {
+    let trashedFolders = await Connection.db.collection("folders").updateMany(
+      {
+        _id: { $in: folders },
+      },
+      {
+        $set: { isTrashed: true, trashedAt: new Date() },
+      }
+    );
+    if (trashedFolders.result.nModified > 0)
+      //Return the folders for the specific user
+      return await Connection.db
+        .collection("folders")
+        .find({
+          user_id: req.user._id,
+          parent_id: returnObjectID(req.body.folder),
+          isTrashed: false,
+        })
+        .toArray();
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error restoring the selected file(s). Please try again.",
+        },
+      });
+    else next(err);
+  }
+};
+
+exports.trashFilesAndFolders = async (req, res, next) => {
+  const files = await this.getTrashFiles();
+  const folders = await this.getTrashFolders();
+  return res.json({
+    files,
+    folders,
+    success: {
+      message: "Files/folders were succesfully trashed",
+    },
+  });
 };
 
 exports.restoreFiles = async (req, res, next) => {
