@@ -2,20 +2,20 @@ const Connection = require("../database/Connection");
 const Joi = require("@hapi/joi");
 const returnObjectID = require("../database/returnObjectID");
 
-generateFolderArray = (req) => {
-  const folders = [];
+// generateFolderArray = (req) => {
+//   const folders = [];
 
-  /* If only one folder is selected, the type of the folderID is a string; otherwise
-   * if two or more folders are selected, it will be an array
-   */
-  if (typeof req.body.folderID === "string")
-    folders.push(returnObjectID(req.body.folderID));
-  else
-    req.body.folderID.forEach((folder) => {
-      folders.push(returnObjectID(folder));
-    });
-  return folders;
-};
+//   /* If only one folder is selected, the type of the folderID is a string; otherwise
+//    * if two or more folders are selected, it will be an array
+//    */
+//   if (typeof req.body.folderID === "string")
+//     folders.push(returnObjectID(req.body.folderID));
+//   else
+//     req.body.folderID.forEach((folder) => {
+//       folders.push(returnObjectID(folder));
+//     });
+//   return folders;
+// };
 
 exports.createFolder = async (req, res, next) => {
   // Create JOI Schema

@@ -5,17 +5,20 @@ const returnObjectID = require("../database/returnObjectID");
 
 generateFileArray = (req) => {
   const files = [];
-
-  /* If only one file is selected, the type of the fileID is a string; otherwise
-   * if two or more files are selected, it will be an array
-   */
-  if (typeof req.body.fileID === "string")
-    files.push(returnObjectID(req.body.fileID));
-  else
-    req.body.fileID.forEach((file) => {
-      files.push(returnObjectID(file));
+  if (req.body.selectedFiles.length > 0)
+    req.body.selectedFiles.forEach((file) => {
+      files.push(returnObjectID(file.id));
     });
   return files;
+};
+
+generateFolderArray = (req) => {
+  const folders = [];
+  if (req.body.selectedFolders.length > 0)
+    req.body.selectedFolders.forEach((folder) => {
+      folders.push(returnObjectID(folder.id));
+    });
+  return folders;
 };
 
 exports.uploadFile = (req, res, next) => {
@@ -153,7 +156,7 @@ exports.getFavoriteFilesAndFolders = async (req, res, next) => {
 
 exports.moveFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be moved to a new location
-  const files = generateFolderArray(req);
+  const files = generateFileArray(req);
 
   try {
     const movedFiles = await Connection.db
@@ -192,7 +195,7 @@ exports.moveFiles = async (req, res, next) => {
 /* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
 exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
-  const files = generateFolderArray(req);
+  const files = generateFileArray(req);
 
   const deletedFilesPromise = files.map(async (file) => {
     await Connection.gfs.delete(file);
@@ -218,37 +221,80 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
-exports.trashFiles = async (req, res, next) => {
+exports.trashFilesAndFolders = async (req, res, next) => {
   // Files represent an array of files that have been selected to be trashed temporarily
-  const files = generateFolderArray(req);
-
+  const files = generateFileArray(req);
+  const folders = generateFolderArray(req);
   try {
     /*
      * Trash the files
      * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
      * will expire after 30 days, therefore, deleting the folder and file
      */
-    const trashedFiles = await Connection.db.collection("fs.files").updateOne(
-      {
-        _id: { $in: files },
-      },
-      {
-        $set: { "metadata.isTrashed": true, trashedAt: new Date() },
-      }
-    );
-    if (trashedFiles.result.nModified > 0)
-      return res.json({
-        success: {
-          message: "Files were succesfully trashed",
+    let trashedFiles;
+    let trashedFolders;
+    let currentFiles = [];
+    let currentFolders = [];
+
+    /**
+     * Trash files
+     */
+    if (files.length > 0) {
+      trashedFiles = await Connection.db.collection("fs.files").updateMany(
+        { _id: { $in: files } },
+        {
+          $set: { "metadata.isTrashed": true, trashedAt: new Date() },
+        }
+      );
+      if (trashedFiles.result.nModified > 0)
+        //Return the files for the specific user
+        currentFiles = await Connection.db
+          .collection("fs.files")
+          .find({
+            "metadata.user_id": req.user._id,
+            "metadata.folder_id": returnObjectID(req.body.folder),
+            "metadata.isTrashed": false,
+          })
+          .toArray();
+    }
+
+    /**
+     * Trash folders
+     */
+    if (folders.length > 0) {
+      trashedFolders = await Connection.db.collection("folders").updateMany(
+        {
+          _id: { $in: folders },
         },
-      });
+        {
+          $set: { isTrashed: true, trashedAt: new Date() },
+        }
+      );
+      if (trashedFolders.result.nModified > 0)
+        //Return the folders for the specific user
+        currentFolders = await Connection.db
+          .collection("folders")
+          .find({
+            user_id: req.user._id,
+            parent_id: returnObjectID(req.body.folder),
+            isTrashed: false,
+          })
+          .toArray();
+    }
+    return res.json({
+      files: currentFiles,
+      folders: currentFolders,
+      success: {
+        message: "Files/folders were succesfully trashed",
+      },
+    });
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {
           message:
-            "There was an error trashing the selected file(s). Please try again.",
+            "There was an error trashing the selected file(s) or folder(s). Please try again.",
         },
       });
     else next(err);
@@ -257,7 +303,7 @@ exports.trashFiles = async (req, res, next) => {
 
 exports.restoreFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be trashed temporarily
-  const files = generateFolderArray(req);
+  const files = generateFileArray(req);
   /*
    * Restore the folders
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
@@ -317,26 +363,20 @@ exports.renameFile = async (req, res, next) => {
 
 exports.copyFiles = (req, res, next) => {
   const files = [];
-  const filesSelectedLength = req.body.fileID.length;
-
+  const filesSelectedLength = req.body.selectedFiles.length;
   // Pushes the files id and name into the 'files' array
-  if (filesSelectedLength === 1) {
+  for (let i = 0; i < filesSelectedLength; ++i) {
     files.push({
-      id: returnObjectID(req.body.fileID),
-      filename: req.body.fileName,
+      id: returnObjectID(req.body.selectedFiles[i].id),
+      filename: req.body.selectedFiles[i].filename,
     });
-  } else {
-    for (let i = 0; i < filesSelectedLength; ++i) {
-      files.push({
-        id: returnObjectID(req.body.fileID[i]),
-        filename: req.body.fileName[i],
-      });
-    }
   }
-
   const options = {
-    user_id: req.user._id,
-    folder_id: returnObjectID(req.body.folder),
+    metadata: {
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.body.folder),
+    },
   };
   /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
   files.map((file) => {
@@ -350,21 +390,38 @@ exports.copyFiles = (req, res, next) => {
       `Copy of ${file.filename}`,
       options
     );
-
+    let id = writeStream.id;
     // Bytes get downloaded and written into the writestream
-    downloadStream.pipe(writeStream).once("finish", () => {
-      return res.json({
-        success: {
-          message: "Files were sucessfully copied",
-        },
-      });
+    downloadStream.pipe(writeStream).once("finish", async () => {
+      try {
+        const files = await Connection.db
+          .collection("fs.files")
+          .find({ _id: id })
+          .toArray();
+        return res.json({
+          success: {
+            message: "Files were sucessfully copied",
+          },
+          files: files,
+        });
+      } catch (err) {
+        // If there is an error with Mongo, throw an error
+        if (err.name === "MongoError")
+          return res.status(404).json({
+            error: {
+              message:
+                "There was an error restoring the selected file(s). Please try again.",
+            },
+          });
+        else next(err);
+      }
     });
   });
 };
 
 exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
-  const files = generateFolderArray(req);
+  const files = generateFileArray(req);
 
   try {
     const favoritedFiles = await Connection.db
@@ -391,7 +448,7 @@ exports.favoriteFiles = async (req, res, next) => {
 
 exports.unfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
-  const files = generateFolderArray(req);
+  const files = generateFileArray(req);
 
   try {
     const unfavoritedFiles = await Connection.db

@@ -13,6 +13,7 @@ const {
   getFilesAndFolders,
   getFavoriteFilesAndFolders,
   getTrashFilesAndFolders,
+  trashFilesAndFolders,
 } = require("../controllers/fileController");
 
 /**
@@ -39,7 +40,7 @@ module.exports = (app) => {
   app.post("/api/files/copy", checkAuthenticated, copyFiles);
 
   // @route POST - Sends file to trash if the user is authenticated.
-  app.post("/api/files/trash", checkAuthenticated, trashFiles);
+  app.post("/api/files/trash", checkAuthenticated, trashFilesAndFolders);
 
   // @route POST - Restores a file if the user is authenticated.
   app.post("/api/files/restore", checkAuthenticated, restoreFiles);
