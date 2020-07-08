@@ -2,7 +2,11 @@ const Connection = require("../database/Connection");
 const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
-const { trashFolders, deleteFolders } = require("./folderController");
+const {
+  trashFolders,
+  deleteFolders,
+  restoreFolders,
+} = require("./folderController");
 generateFileArray = (req) => {
   const files = [];
   if (req.body.selectedFiles.length > 0)
@@ -10,15 +14,6 @@ generateFileArray = (req) => {
       files.push(returnObjectID(file.id));
     });
   return files;
-};
-
-generateFolderArray = (req) => {
-  const folders = [];
-  if (req.body.selectedFolders.length > 0)
-    req.body.selectedFolders.forEach((folder) => {
-      folders.push(returnObjectID(folder.id));
-    });
-  return folders;
 };
 
 exports.uploadFile = (req, res, next) => {
@@ -31,18 +26,25 @@ exports.uploadFile = (req, res, next) => {
       folder_id: returnObjectID(req.params.folder),
     },
   };
-  // File has been received
-  form.on("file", (field, file) => {
-    const writestream = Connection.gfs.openUploadStream(file.name, options);
-    fs.createReadStream(file.path).pipe(writestream);
-  });
+  console.log(options);
 
   //This is necessary to trigger the events
   form.parse(req);
 
+  // File has been received
+  form.on("file", (field, file) => {
+    console.log(file);
+    const writestream = Connection.gfs.openUploadStream(file.name, options);
+    fs.createReadStream(file.path)
+      .pipe(writestream)
+      .once("finish", () => {
+        console.log("Finished");
+      });
+  });
+
   // If an error occurs, return an error response back to the client
   form.on("error", (err) => {
-    next(err);
+    if (err) next(err);
   });
 
   // Once it is finishing parsing the file, upload the file to GridFSBucket
@@ -196,6 +198,14 @@ exports.moveFiles = async (req, res, next) => {
 exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
   const files = generateFileArray(req);
+  if (files.length === 0)
+    return await Connection.db
+      .collection("fs.files")
+      .find({
+        "metadata.user_id": req.user._id,
+        "metadata.isTrashed": true,
+      })
+      .toArray();
   const deletedFilesPromise = files.map(async (file) => {
     await Connection.gfs.delete(file);
   });
@@ -236,7 +246,15 @@ exports.deleteFilesAndFolders = async (req, res, next) => {
 
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
-  if (files.length === 0) return [];
+  if (files.length === 0)
+    return await Connection.db
+      .collection("fs.files")
+      .find({
+        "metadata.user_id": req.user._id,
+        "metadata.folder_id": returnObjectID(req.body.folder),
+        "metadata.isTrashed": false,
+      })
+      .toArray();
   try {
     /*
      * Trash the files
@@ -292,6 +310,14 @@ exports.restoreFiles = async (req, res, next) => {
    * Restore the folders
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
    */
+  if (files.length === 0)
+    return await Connection.db
+      .collection("fs.files")
+      .find({
+        "metadata.user_id": req.user._id,
+        "metadata.isTrashed": true,
+      })
+      .toArray();
   try {
     const restoredFiles = await Connection.db.collection("fs.files").updateMany(
       {
@@ -301,11 +327,13 @@ exports.restoreFiles = async (req, res, next) => {
       { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
     );
     if (restoredFiles.result.nModified > 0)
-      return res.json({
-        success: {
-          message: "Files were succesfully restored",
-        },
-      });
+      return await Connection.db
+        .collection("fs.files")
+        .find({
+          "metadata.user_id": req.user._id,
+          "metadata.isTrashed": true,
+        })
+        .toArray();
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -317,6 +345,18 @@ exports.restoreFiles = async (req, res, next) => {
       });
     else next(err);
   }
+};
+
+exports.restoreFilesAndFolders = async (req, res, next) => {
+  const files = await this.restoreFiles(req, res, next);
+  const folders = await restoreFolders(req, res, next);
+  console.log("Files", files);
+  console.log("Folders", folders);
+  return res.json({
+    files,
+    folders,
+    sucess: { message: "Files/folders were successfully restored" },
+  });
 };
 
 exports.renameFile = async (req, res, next) => {

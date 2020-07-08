@@ -2,19 +2,16 @@ const { checkAuthenticated } = require("../middlewares/requireLogin");
 const {
   uploadFile,
   moveFiles,
-  deleteFiles,
   renameFile,
   copyFiles,
-  trashFiles,
-  restoreFiles,
   favoriteFiles,
   unfavoriteFiles,
-  getFiles,
   getFilesAndFolders,
   getFavoriteFilesAndFolders,
   getTrashFilesAndFolders,
   trashFilesAndFolders,
   deleteFilesAndFolders,
+  restoreFilesAndFolders,
 } = require("../controllers/fileController");
 
 /**
@@ -44,7 +41,7 @@ module.exports = (app) => {
   app.post("/api/files/trash", checkAuthenticated, trashFilesAndFolders);
 
   // @route POST - Restores a file if the user is authenticated.
-  app.post("/api/files/restore", checkAuthenticated, restoreFiles);
+  app.post("/api/files/restore", checkAuthenticated, restoreFilesAndFolders);
 
   // @route POST - Favorites a folder if the user is authenticated.
   app.post("/api/files/favorite", checkAuthenticated, favoriteFiles);

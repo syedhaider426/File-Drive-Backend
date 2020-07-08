@@ -2,20 +2,15 @@ const Connection = require("../database/Connection");
 const Joi = require("@hapi/joi");
 const returnObjectID = require("../database/returnObjectID");
 
-// generateFolderArray = (req) => {
-//   const folders = [];
+generateFolderArray = (req) => {
+  const folders = [];
+  if (req.body.selectedFolders.length > 0)
+    req.body.selectedFolders.forEach((folder) => {
+      folders.push(returnObjectID(folder.id));
+    });
 
-//   /* If only one folder is selected, the type of the folderID is a string; otherwise
-//    * if two or more folders are selected, it will be an array
-//    */
-//   if (typeof req.body.folderID === "string")
-//     folders.push(returnObjectID(req.body.folderID));
-//   else
-//     req.body.folderID.forEach((folder) => {
-//       folders.push(returnObjectID(folder));
-//     });
-//   return folders;
-// };
+  return folders;
+};
 
 exports.createFolder = async (req, res, next) => {
   // Create JOI Schema
@@ -161,7 +156,14 @@ exports.moveFolders = async (req, res, next) => {
 exports.deleteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be permanently deleted
   const folders = generateFolderArray(req);
-
+  if (folders.length === 0)
+    return await Connection.db
+      .collection("folders")
+      .find({
+        user_id: req.user._id,
+        isTrashed: true,
+      })
+      .toArray();
   try {
     // Find the files that are in the specified folder
     const files = await Connection.db
@@ -188,7 +190,6 @@ exports.deleteFolders = async (req, res, next) => {
         .deleteMany({
           _id: { $in: folders },
         });
-      console.log(deletedFoldersResult);
       // If the folders were moved successfully, return a success response back to the client
       if (deletedFoldersResult.deletedCount > 0)
         return await Connection.db
@@ -214,7 +215,15 @@ exports.deleteFolders = async (req, res, next) => {
 
 exports.trashFolders = async (req, res, next) => {
   const folders = generateFolderArray(req);
-  if (folders.length === 0) return [];
+  if (folders.length === 0)
+    return await Connection.db
+      .collection("folders")
+      .find({
+        user_id: req.user._id,
+        parent_id: returnObjectID(req.body.folder),
+        isTrashed: false,
+      })
+      .toArray();
   try {
     let trashedFolders = await Connection.db.collection("folders").updateMany(
       {
@@ -250,11 +259,20 @@ exports.trashFolders = async (req, res, next) => {
 exports.restoreFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be restored from the trash
   const folders = generateFolderArray(req);
+  if (folders.length === 0)
+    return await Connection.db
+      .collection("folders")
+      .find({
+        user_id: req.user._id,
+        isTrashed: true,
+      })
+      .toArray();
   try {
     /*
      * Restore the folders
      * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
      */
+
     const restoredFolders = await Connection.db
       .collection("folders")
       .updateMany(
@@ -272,13 +290,16 @@ exports.restoreFolders = async (req, res, next) => {
           },
           { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
         );
+
       // If files are restored succesfully, return a sucess response back to the client
-      if (restoredFiles.result.nModified > 0) {
-        return res.json({
-          sucess: {
-            message: "Folders were restored successfully.",
-          },
-        });
+      if (restoredFiles.result.nModified >= 0) {
+        return await Connection.db
+          .collection("folders")
+          .find({
+            user_id: req.user._id,
+            isTrashed: true,
+          })
+          .toArray();
       }
     }
   } catch (err) {
