@@ -1,6 +1,11 @@
 const Connection = require("../database/Connection");
 const Joi = require("@hapi/joi");
 const returnObjectID = require("../database/returnObjectID");
+const {
+  findFolders,
+  updateFolders,
+  createFolder,
+} = require("../database/crud");
 
 generateFolderArray = (req) => {
   const folders = [];
@@ -41,29 +46,17 @@ exports.createFolder = async (req, res, next) => {
     createdOn: new Date(),
     isTrashed: false,
   };
-  try {
-    // Creates folder
-    const createdFolder = await Connection.db
-      .collection("folders")
-      .insertOne(folder);
 
-    // If folder was created succesfully, return a success response back to client
-    if (createdFolder.insertedId)
-      return res.status(201).json({
-        success: {
-          message: "Folder successfully created",
-        },
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message: "There was an error creating this folder. Please try again.",
-        },
-      });
-    else next(err);
-  }
+  // Creates folder
+  const createdFolder = await createFolder(folder);
+
+  // If folder was created succesfully, return a success response back to client
+  if (createdFolder.insertedId)
+    return res.status(201).json({
+      success: {
+        message: "Folder successfully created",
+      },
+    });
 };
 
 exports.renameFolder = async (req, res, next) => {
@@ -87,36 +80,166 @@ exports.renameFolder = async (req, res, next) => {
       },
     });
 
-  try {
-    // Updates the folder with the new folder name
-    const renamedFolderResult = await Connection.db
-      .collection("folders")
-      .updateOne(
-        {
-          _id: returnObjectID(req.body.folderID),
-        },
-        {
-          $set: { foldername: req.body.folder },
-        }
-      );
+  // Updates the folder with the new folder name
+  const renamedFolderResult = await updateFolders(
+    {
+      _id: returnObjectID(req.body.folderID),
+    },
+    {
+      $set: { foldername: req.body.folder },
+    }
+  );
 
-    // If the folder was renamed succesfully, send a success response back to the client
-    if (renamedFolderResult.result.nModified === 1)
-      return res.json({
-        sucess: {
-          message: "Folder was renamed successfully.",
-        },
+  // If the folder was renamed succesfully, send a success response back to the client
+  if (renamedFolderResult.result.nModified === 1)
+    return res.json({
+      sucess: {
+        message: "Folder was renamed successfully.",
+      },
+    });
+};
+
+exports.deleteFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be permanently deleted
+  const folders = generateFolderArray(req);
+  if (folders.length === 0)
+    return await findFolders({
+      user_id: req.user._id,
+      isTrashed: true,
+    });
+
+  // Find the files that are in the specified folder
+  const files = await findFiles({
+    "metadata.folder_id": { $in: folders },
+  });
+
+  // Deletes the files that are in fs.files and fs.chunks
+  const deletedFilesPromise = files.map(async (file) => {
+    await Connection.gfs.delete(file._id);
+  });
+
+  return Promise.all(deletedFilesPromise).then(async () => {
+    // Delete all the selected folders
+    const deletedFoldersResult = await Connection.db
+      .collection("folders")
+      .deleteMany({
+        _id: { $in: folders },
       });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message: "There was an error renaming this folder. Please try again.",
-        },
+    // If the folders were moved successfully, return a success response back to the client
+    if (deletedFoldersResult.deletedCount > 0)
+      return await findFolders({
+        user_id: req.user._id,
+        isTrashed: true,
       });
-    else next(err);
+  });
+};
+
+exports.trashFolders = async (req, res, next) => {
+  const folders = generateFolderArray(req);
+  if (folders.length === 0)
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.body.folder),
+      isTrashed: false,
+    });
+
+  let trashedFolders = await updateFolders(
+    {
+      _id: { $in: folders },
+    },
+    {
+      $set: { isTrashed: true, trashedAt: new Date(), isFavorited: false },
+    }
+  );
+  if (trashedFolders.result.nModified > 0)
+    //Return the folders for the specific user
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.body.folder),
+      isTrashed: false,
+    });
+};
+
+exports.restoreFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be restored from the trash
+  const folders = generateFolderArray(req);
+  if (folders.length === 0)
+    return findFolders({
+      user_id: req.user._id,
+      isTrashed: true,
+    });
+
+  /*
+   * Restore the folders
+   * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
+   */
+
+  const restoredFolders = await updateFolders(
+    { user_id: req.user._id, _id: { $in: folders } },
+    { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
+  );
+  if (restoredFolders.result.nModified > 0) {
+    // Restore the files
+    const restoredFiles = await updateFiles(
+      {
+        "metadata.user_id": req.user._id,
+        "metadata.folder_id": { $in: folders },
+      },
+      { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
+    );
+
+    // If files are restored succesfully, return a sucess response back to the client
+    if (restoredFiles.result.nModified >= 0) {
+      return await findFolders({
+        user_id: req.user._id,
+        isTrashed: true,
+      });
+    }
   }
+};
+
+exports.favoriteFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be favorited
+  const folders = generateFolderArray(req);
+  if (folders.length === 0)
+    return await findFolders({ user_id: req.user._id, isTrashed: false });
+  // Favorites the selected folders
+  const favoritedFolders = await updateFolders(
+    { _id: { $in: folders } },
+    { $set: { isFavorited: true } }
+  );
+  // If folders were succesfully favorited, return a success response back to the client
+  if (favoritedFolders.result.nModified > 0)
+    return await findFolders({
+      user_id: req.user._id,
+      isTrashed: false,
+      isFavorited: false,
+    });
+};
+
+exports.unfavoriteFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be unfavorited
+  const folders = generateFolderArray(req);
+  if (folders.length === 0)
+    return await findFolders({
+      user_id: req.user._id,
+      isTrashed: false,
+      isFavorited: true,
+    });
+
+  // Unfavorites the selected folder
+  const unfavoritedFolders = await updateFolders(
+    { _id: { $in: folders } },
+    { $set: { isFavorited: false } }
+  );
+
+  // If the folders were unfavorited, return a success response back to the client
+  if (unfavoritedFolders.result.nModified > 0)
+    return await findFolders({
+      user_id: req.user._id,
+      isTrashed: false,
+      isFavorited: true,
+    });
 };
 
 exports.moveFolders = async (req, res, next) => {
@@ -147,225 +270,6 @@ exports.moveFolders = async (req, res, next) => {
       return res.status(404).json({
         error: {
           message: "There was an error moving the folder(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
-exports.deleteFolders = async (req, res, next) => {
-  // Folders represent an array of folders that will be permanently deleted
-  const folders = generateFolderArray(req);
-  if (folders.length === 0)
-    return await Connection.db
-      .collection("folders")
-      .find({
-        user_id: req.user._id,
-        isTrashed: true,
-      })
-      .toArray();
-  try {
-    // Find the files that are in the specified folder
-    const files = await Connection.db
-      .collection("fs.files")
-      .find(
-        {
-          "metadata.folder_id": { $in: folders },
-        },
-        {
-          _id: 1,
-        }
-      )
-      .toArray();
-
-    // Deletes the files that are in fs.files and fs.chunks
-    const deletedFilesPromise = files.map(async (file) => {
-      await Connection.gfs.delete(file._id);
-    });
-
-    return Promise.all(deletedFilesPromise).then(async () => {
-      // Delete all the selected folders
-      const deletedFoldersResult = await Connection.db
-        .collection("folders")
-        .deleteMany({
-          _id: { $in: folders },
-        });
-      // If the folders were moved successfully, return a success response back to the client
-      if (deletedFoldersResult.deletedCount > 0)
-        return await Connection.db
-          .collection("folders")
-          .find({
-            user_id: req.user._id,
-            isTrashed: true,
-          })
-          .toArray();
-    });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error deleting the folder(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
-exports.trashFolders = async (req, res, next) => {
-  const folders = generateFolderArray(req);
-  if (folders.length === 0)
-    return await Connection.db
-      .collection("folders")
-      .find({
-        user_id: req.user._id,
-        parent_id: returnObjectID(req.body.folder),
-        isTrashed: false,
-      })
-      .toArray();
-  try {
-    let trashedFolders = await Connection.db.collection("folders").updateMany(
-      {
-        _id: { $in: folders },
-      },
-      {
-        $set: { isTrashed: true, trashedAt: new Date() },
-      }
-    );
-    if (trashedFolders.result.nModified > 0)
-      //Return the folders for the specific user
-      return await Connection.db
-        .collection("folders")
-        .find({
-          user_id: req.user._id,
-          parent_id: returnObjectID(req.body.folder),
-          isTrashed: false,
-        })
-        .toArray();
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error restoring the selected file(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
-exports.restoreFolders = async (req, res, next) => {
-  // Folders represent an array of folders that will be restored from the trash
-  const folders = generateFolderArray(req);
-  if (folders.length === 0)
-    return await Connection.db
-      .collection("folders")
-      .find({
-        user_id: req.user._id,
-        isTrashed: true,
-      })
-      .toArray();
-  try {
-    /*
-     * Restore the folders
-     * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
-     */
-
-    const restoredFolders = await Connection.db
-      .collection("folders")
-      .updateMany(
-        { user_id: req.user._id, _id: { $in: folders } },
-        { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
-      );
-    if (restoredFolders.result.nModified > 0) {
-      // Restore the files
-      const restoredFiles = await Connection.db
-        .collection("fs.files")
-        .updateMany(
-          {
-            "metadata.user_id": req.user._id,
-            "metadata.folder_id": { $in: folders },
-          },
-          { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
-        );
-
-      // If files are restored succesfully, return a sucess response back to the client
-      if (restoredFiles.result.nModified >= 0) {
-        return await Connection.db
-          .collection("folders")
-          .find({
-            user_id: req.user._id,
-            isTrashed: true,
-          })
-          .toArray();
-      }
-    }
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error restoring the folder(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
-exports.favoriteFolders = async (req, res, next) => {
-  // Folders represent an array of folders that will be favorited
-  const folders = generateFolderArray(req);
-  try {
-    // Favorites the selected folders
-    const favoritedFolders = await Connection.db
-      .collection("folders")
-      .updateMany({ _id: { $in: folders } }, { $set: { isFavorited: true } });
-    // If folders were succesfully favorited, return a success response back to the client
-    if (favoritedFolders.result.nModified > 0)
-      return res.json({
-        success: {
-          message: "Folders were successfully favorited",
-        },
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error favoriting the folder(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
-exports.unfavoriteFolders = async (req, res, next) => {
-  // Folders represent an array of folders that will be unfavorited
-  const folders = generateFolderArray(req);
-  try {
-    // Unfavorites the selected folder
-    const unfavoritedFolders = await Connection.db
-      .collection("folders")
-      .updateMany({ _id: { $in: folders } }, { $set: { isFavorited: false } });
-
-    // If the folders were unfavorited, return a success response back to the client
-    if (unfavoritedFolders.result.nModified > 0)
-      return res.status(404).json({
-        success: {
-          message: "Folders were successfully unfavorited",
-        },
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error unfavoriting the folder(s). Please try again.",
         },
       });
     else next(err);
