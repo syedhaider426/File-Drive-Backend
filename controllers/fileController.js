@@ -10,7 +10,12 @@ const {
   unfavoriteFolders,
 } = require("./folderController");
 
-const { createFiles, findFiles, updateFiles } = require("../database/crud");
+const {
+  createFiles,
+  findFiles,
+  updateFiles,
+  findFolders,
+} = require("../database/crud");
 
 generateFileArray = (req) => {
   const files = [];
@@ -98,7 +103,7 @@ exports.deleteFiles = async (req, res, next) => {
   });
   return Promise.all(deletedFilesPromise)
     .then(async () => {
-      return await Connection.db.collection("fs.files").find({
+      return await findFiles({
         "metadata.user_id": req.user._id,
         "metadata.isTrashed": true,
       });
@@ -281,17 +286,18 @@ exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFileArray(req);
   if (files.length === 0)
-    return await Connection.db.collection("fs.files").find({
+    return await findFiles({
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.params.folder),
       "metadata.isTrashed": false,
     });
   try {
-    const favoritedFiles = await Connection.db
-      .collection("fs.files")
-      .updateMany({ _id: { $in: files } }, { $set: { isFavorited: true } });
+    const favoritedFiles = await updateFiles(
+      { _id: { $in: files } },
+      { $set: { isFavorited: true } }
+    );
     if (favoritedFiles.result.nModified > 0)
-      return await Connection.db.collection("fs.files").find({
+      return await findFiles({
         "metadata.user_id": req.user._id,
         "metadata.folder_id": returnObjectID(req.params.folder),
         "metadata.isTrashed": false,
@@ -359,7 +365,7 @@ exports.moveFiles = async (req, res, next) => {
   const files = generateFileArray(req);
 
   try {
-    const movedFiles = await Connection.db.collection("fs.files").update(
+    const movedFiles = await updateFiles(
       {
         _id: { $in: files },
       },

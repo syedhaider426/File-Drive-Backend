@@ -5,6 +5,9 @@ const {
   findFolders,
   updateFolders,
   createFolder,
+  updateFiles,
+  findFiles,
+  deleteFolder,
 } = require("../database/crud");
 
 generateFolderArray = (req) => {
@@ -120,11 +123,9 @@ exports.deleteFolders = async (req, res, next) => {
 
   return Promise.all(deletedFilesPromise).then(async () => {
     // Delete all the selected folders
-    const deletedFoldersResult = await Connection.db
-      .collection("folders")
-      .deleteMany({
-        _id: { $in: folders },
-      });
+    const deletedFoldersResult = await deleteFolder({
+      _id: { $in: folders },
+    });
     // If the folders were moved successfully, return a success response back to the client
     if (deletedFoldersResult.deletedCount > 0)
       return await findFolders({
@@ -247,16 +248,14 @@ exports.moveFolders = async (req, res, next) => {
   const folders = generateFolderArray(req);
   try {
     // Change location of folder(s)
-    const movedFolderResult = await Connection.db
-      .collection("folders")
-      .updateOne(
-        {
-          _id: { $in: folders },
-        },
-        {
-          $set: { parent_id: returnObjectID(req.body.moveFolder) },
-        }
-      );
+    const movedFolderResult = await updateFolders(
+      {
+        _id: { $in: folders },
+      },
+      {
+        $set: { parent_id: returnObjectID(req.body.moveFolder) },
+      }
+    );
     // If the folders were moved successfully, return a success response back to the client
     if (movedFolderResult.result.nModified > 0)
       return res.json({
