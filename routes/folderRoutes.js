@@ -22,16 +22,4 @@ module.exports = (app) => {
 
   // @route POST - Moves a folder if the user is authenticated.
   app.post("/api/folders/move", checkAuthenticated, moveFolders);
-
-  // @route POST - Deletes a folder if the user is authenticated.
-  app.post("/api/folders/delete", checkAuthenticated, deleteFolders);
-
-  // @route POST - Restores a folder for use if the user is authenticated.
-  app.post("/api/folders/restore", checkAuthenticated, restoreFolders);
-
-  // @route POST - Favorites a folder if the user is authenticated.
-  app.post("/api/folders/favorite", checkAuthenticated, favoriteFolders);
-
-  // @route POST - Unfavorites a folder if the user is authenticated.
-  app.post("/api/folders/unfavorite", checkAuthenticated, unfavoriteFolders);
 };

@@ -20,6 +20,7 @@ const {
   restoreFiles,
   getTrashFiles,
   getFavoriteFiles,
+  favoriteFiles,
 } = require("./fileController");
 
 exports.getFilesAndFolders = async (req, res, next) => {
