@@ -21,7 +21,7 @@ module.exports = (app) => {
   app.post("/api/user/resendEmailVerification", resendVerificationEmail);
 
   // @route POST - Logs in the user if they are not authenticated and provide the proper credentials.
-  app.post("/login", checkNotAuthenticated, (req, res, next) => {
+  app.post("/api/user/login", checkNotAuthenticated, (req, res, next) => {
     passport.authenticate("local", (err, user, info) => {
       if (err) next(err);
       if (!user)

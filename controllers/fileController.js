@@ -27,8 +27,6 @@ generateFileArray = (req) => {
 };
 
 exports.uploadFile = (req, res, next) => {
-  //Pass in an array of files
-  const form = new formidable.IncomingForm();
   const options = {
     metadata: {
       user_id: req.user._id,
@@ -36,7 +34,35 @@ exports.uploadFile = (req, res, next) => {
       folder_id: returnObjectID(req.params.folder),
     },
   };
-  createFiles(req, options);
+  //Pass in an array of files
+  const form = new formidable.IncomingForm();
+
+  //This is necessary to trigger the events
+  form.parse(req);
+
+  // File has been received
+  form.on("file", (field, file) => {
+    const writestream = Connection.gfs.openUploadStream(file.name, options);
+    fs.createReadStream(file.path)
+      .pipe(writestream)
+      .once("finish", () => {
+        console.log("Finished");
+      });
+  });
+
+  // If an error occurs, return an error response back to the client
+  form.on("error", (err) => {
+    if (err) next(err);
+  });
+
+  // Once it is finishing parsing the file, upload the file to GridFSBucket
+  form.once("end", () => {
+    return res.json({
+      success: {
+        message: "Files were sucessfully uploaded",
+      },
+    });
+  });
 };
 
 exports.getFilesAndFolders = async (req, res, next) => {
@@ -84,7 +110,7 @@ exports.getFavoriteFilesAndFolders = async (req, res, next) => {
     isTrashed: false,
   });
   const result = { files, folders };
-  res.json(result);
+  return res.json(result);
 };
 
 /* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
@@ -140,6 +166,7 @@ exports.trashFiles = async (req, res, next) => {
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.body.folder),
       "metadata.isTrashed": false,
+      isFavorited: req.body.isFavorited || false,
     });
   /*
    * Trash the files
@@ -163,6 +190,7 @@ exports.trashFiles = async (req, res, next) => {
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.body.folder),
       "metadata.isTrashed": false,
+      isFavorited: req.body.isFavorited || false,
     });
 };
 
@@ -291,29 +319,17 @@ exports.favoriteFiles = async (req, res, next) => {
       "metadata.folder_id": returnObjectID(req.params.folder),
       "metadata.isTrashed": false,
     });
-  try {
-    const favoritedFiles = await updateFiles(
-      { _id: { $in: files } },
-      { $set: { isFavorited: true } }
-    );
-    if (favoritedFiles.result.nModified > 0)
-      return await findFiles({
-        "metadata.user_id": req.user._id,
-        "metadata.folder_id": returnObjectID(req.params.folder),
-        "metadata.isTrashed": false,
-        isFavorited: false,
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message:
-            "There was an error restoring the selected file(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
+
+  const favoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { isFavorited: true } }
+  );
+  if (favoritedFiles.result.nModified > 0)
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+    });
 };
 
 exports.favoriteFilesAndFolders = async (req, res, next) => {

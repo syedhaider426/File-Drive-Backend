@@ -1,35 +1,5 @@
 const Connection = require("./Connection");
 
-exports.createFiles = async (req, options) => {
-  //This is necessary to trigger the events
-  form.parse(req);
-
-  // File has been received
-  form.on("file", (field, file) => {
-    console.log(file);
-    const writestream = Connection.gfs.openUploadStream(file.name, options);
-    fs.createReadStream(file.path)
-      .pipe(writestream)
-      .once("finish", () => {
-        console.log("Finished");
-      });
-  });
-
-  // If an error occurs, return an error response back to the client
-  form.on("error", (err) => {
-    if (err) next(err);
-  });
-
-  // Once it is finishing parsing the file, upload the file to GridFSBucket
-  form.once("end", () => {
-    return res.json({
-      success: {
-        message: "Files were sucessfully uploaded",
-      },
-    });
-  });
-};
-
 exports.findFiles = async (whereClause) => {
   try {
     return await Connection.db

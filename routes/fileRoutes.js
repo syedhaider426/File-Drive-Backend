@@ -5,13 +5,14 @@ const {
   renameFile,
   copyFiles,
   favoriteFiles,
-  unfavoriteFiles,
+  unfavoriteFilesAndFolders,
   getFilesAndFolders,
   getFavoriteFilesAndFolders,
   getTrashFilesAndFolders,
   trashFilesAndFolders,
   deleteFilesAndFolders,
   restoreFilesAndFolders,
+  favoriteFilesAndFolders,
 } = require("../controllers/fileController");
 
 /**
@@ -28,8 +29,8 @@ module.exports = (app) => {
   // @route POST - Moves a file or files to designated folder if the user is authenticated.
   app.post("/api/files/move", checkAuthenticated, moveFiles);
 
-  // @route POST - Deletes a file or files if the user is authenticated.
-  app.post("/api/files/delete", checkAuthenticated, deleteFilesAndFolders);
+  // @route DELETE - Deletes a file or files if the user is authenticated.
+  app.delete("/api/files/delete", checkAuthenticated, deleteFilesAndFolders);
 
   // @route POST - Renames a file if the user is authenticated.
   app.post("/api/files/rename", checkAuthenticated, renameFile);
@@ -44,17 +45,21 @@ module.exports = (app) => {
   app.post("/api/files/restore", checkAuthenticated, restoreFilesAndFolders);
 
   // @route POST - Favorites a folder if the user is authenticated.
-  app.post("/api/files/favorite", checkAuthenticated, favoriteFiles);
+  app.post("/api/files/favorite", checkAuthenticated, favoriteFilesAndFolders);
 
   // @route POST - Unfavorites a folder if the user is authenticated.
-  app.post("/api/files/unfavorite", checkAuthenticated, unfavoriteFiles);
+  app.post(
+    "/api/files/unfavorite",
+    checkAuthenticated,
+    unfavoriteFilesAndFolders
+  );
 
   // @route GET - Gets files and folders for users
-  app.get("/api/files/getAll", getFilesAndFolders);
+  app.get("/api/files/home", getFilesAndFolders);
 
   // @route GET - Gets favorited files and folders for users
-  app.get("/api/files/getFavorite", getFavoriteFilesAndFolders);
+  app.get("/api/files/favorites", getFavoriteFilesAndFolders);
 
   // @route GET - Gets trashed files and folders for users
-  app.get("/api/files/getTrash", getTrashFilesAndFolders);
+  app.get("/api/files/trash", getTrashFilesAndFolders);
 };

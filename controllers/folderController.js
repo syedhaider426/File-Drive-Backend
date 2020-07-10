@@ -142,6 +142,7 @@ exports.trashFolders = async (req, res, next) => {
       user_id: req.user._id,
       parent_id: returnObjectID(req.body.folder),
       isTrashed: false,
+      isFavorited: req.body.isFavorited || false,
     });
 
   let trashedFolders = await updateFolders(
@@ -158,6 +159,7 @@ exports.trashFolders = async (req, res, next) => {
       user_id: req.user._id,
       parent_id: returnObjectID(req.body.folder),
       isTrashed: false,
+      isFavorited: req.body.isFavorited || false,
     });
 };
 
@@ -214,7 +216,6 @@ exports.favoriteFolders = async (req, res, next) => {
     return await findFolders({
       user_id: req.user._id,
       isTrashed: false,
-      isFavorited: false,
     });
 };
 
@@ -246,31 +247,20 @@ exports.unfavoriteFolders = async (req, res, next) => {
 exports.moveFolders = async (req, res, next) => {
   // Folders represent an array of folders that have been selected to be moved to a new location
   const folders = generateFolderArray(req);
-  try {
-    // Change location of folder(s)
-    const movedFolderResult = await updateFolders(
-      {
-        _id: { $in: folders },
+  // Change location of folder(s)
+  const movedFolderResult = await updateFolders(
+    {
+      _id: { $in: folders },
+    },
+    {
+      $set: { parent_id: returnObjectID(req.body.moveFolder) },
+    }
+  );
+  // If the folders were moved successfully, return a success response back to the client
+  if (movedFolderResult.result.nModified > 0)
+    return res.json({
+      sucess: {
+        message: "Folders were moved successfully.",
       },
-      {
-        $set: { parent_id: returnObjectID(req.body.moveFolder) },
-      }
-    );
-    // If the folders were moved successfully, return a success response back to the client
-    if (movedFolderResult.result.nModified > 0)
-      return res.json({
-        sucess: {
-          message: "Folders were moved successfully.",
-        },
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message: "There was an error moving the folder(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
+    });
 };
