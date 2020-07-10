@@ -17,6 +17,8 @@ const {
   deleteFilesAndFolders,
   restoreFilesAndFolders,
   favoriteFilesAndFolders,
+  undoTrashFilesAndFolders,
+  undoFavoriteFilesAndFolders,
 } = require("../controllers/fileFolderController");
 
 /**
@@ -51,8 +53,22 @@ module.exports = (app) => {
   // @route POST - Restores a file if the user is authenticated.
   app.post("/api/files/restore", checkAuthenticated, restoreFilesAndFolders);
 
+  // @route POST - Restores a file or folder if the user accidentally trashes it.
+  app.post(
+    "/api/files/undoTrash",
+    checkAuthenticated,
+    undoTrashFilesAndFolders
+  );
+
   // @route POST - Favorites a folder if the user is authenticated.
   app.post("/api/files/favorite", checkAuthenticated, favoriteFilesAndFolders);
+
+  // @route POST - Favorites a folder if the user is authenticated.
+  app.post(
+    "/api/files/undoFavorite",
+    checkAuthenticated,
+    undoFavoriteFilesAndFolders
+  );
 
   // @route POST - Unfavorites a folder if the user is authenticated.
   app.post(

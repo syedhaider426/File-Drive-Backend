@@ -198,6 +198,37 @@ exports.restoreFolders = async (req, res, next) => {
   }
 };
 
+exports.undoTrashFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be restored from the trash
+  const folders = generateFolderArray(req);
+  if (folders.length === 0) return await this.getFolders(req, res, next);
+
+  /*
+   * Restore the folders
+   * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
+   */
+
+  const restoredFolders = await updateFolders(
+    { user_id: req.user._id, _id: { $in: folders } },
+    { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
+  );
+  if (restoredFolders.result.nModified > 0) {
+    // Restore the files
+    const restoredFiles = await updateFiles(
+      {
+        "metadata.user_id": req.user._id,
+        "metadata.folder_id": { $in: folders },
+      },
+      { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
+    );
+
+    // If files are restored succesfully, return a sucess response back to the client
+    if (restoredFiles.result.nModified >= 0) {
+      return await this.getFolders(req, res, next);
+    }
+  }
+};
+
 exports.favoriteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be favorited
   const folders = generateFolderArray(req);
@@ -227,6 +258,22 @@ exports.unfavoriteFolders = async (req, res, next) => {
   // If the folders were unfavorited, return a success response back to the client
   if (unfavoritedFolders.result.nModified > 0)
     return await this.getFavoriteFolders(req, res, next);
+};
+
+exports.undoFavoriteFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be unfavorited
+  const folders = generateFolderArray(req);
+  if (folders.length === 0) return await this.getFolders(req, res, next);
+
+  // Unfavorites the selected folder
+  const unfavoritedFolders = await updateFolders(
+    { _id: { $in: folders } },
+    { $set: { isFavorited: false } }
+  );
+
+  // If the folders were unfavorited, return a success response back to the client
+  if (unfavoritedFolders.result.nModified > 0)
+    return await this.getFolders(req, res, next);
 };
 
 exports.moveFolders = async (req, res, next) => {

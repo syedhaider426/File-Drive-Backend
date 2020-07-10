@@ -11,6 +11,7 @@ generateFileArray = (req) => {
     req.body.selectedFiles.forEach((file) => {
       files.push(returnObjectID(file.id));
     });
+  console.log("Selectted files", files);
   return files;
 };
 
@@ -104,30 +105,6 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
-exports.undoCopy = async (req, res, next) => {
-  // Files represent an array of files that have been selected to be deleted permanently
-  const files = generateFileArray(req);
-  const deletedFilesPromise = files.map(async (file) => {
-    await Connection.gfs.delete(file);
-  });
-  return Promise.all(deletedFilesPromise)
-    .then(async () => {
-      const files = await this.getFiles(req, res, next);
-      res.json({ files });
-    })
-    .catch((err) => {
-      // If there is an error with Mongo, throw an error
-      if (err.name === "MongoError")
-        return res.status(404).json({
-          error: {
-            message:
-              "There was an error deleting the selected file(s)/folder(s). Please try again.",
-          },
-        });
-      else next(err);
-    });
-};
-
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
   if (files.length === 0)
@@ -178,6 +155,25 @@ exports.restoreFiles = async (req, res, next) => {
   );
   if (restoredFiles.result.nModified > 0)
     return await this.getTrashFiles(req, res, next);
+};
+
+exports.undoTrashFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be trashed temporarily
+  const files = generateFileArray(req);
+  /*
+   * Restore the folders
+   * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
+   */
+  if (files.length === 0) return await this.getFiles(req, res, next);
+  const restoredFiles = await updateFiles(
+    {
+      "metadata.user_id": req.user._id,
+      _id: { $in: files },
+    },
+    { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
+  );
+  if (restoredFiles.result.nModified > 0)
+    return await this.getFiles(req, res, next);
 };
 
 exports.renameFile = async (req, res, next) => {
@@ -251,6 +247,30 @@ exports.copyFiles = (req, res, next) => {
   });
 };
 
+exports.undoCopy = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be deleted permanently
+  const files = generateFileArray(req);
+  const deletedFilesPromise = files.map(async (file) => {
+    await Connection.gfs.delete(file);
+  });
+  return Promise.all(deletedFilesPromise)
+    .then(async () => {
+      const files = await this.getFiles(req, res, next);
+      res.json({ files });
+    })
+    .catch((err) => {
+      // If there is an error with Mongo, throw an error
+      if (err.name === "MongoError")
+        return res.status(404).json({
+          error: {
+            message:
+              "There was an error deleting the selected file(s)/folder(s). Please try again.",
+          },
+        });
+      else next(err);
+    });
+};
+
 exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFileArray(req);
@@ -275,6 +295,21 @@ exports.unfavoriteFiles = async (req, res, next) => {
   );
   if (unfavoritedFiles.result.nModified > 0)
     return await this.getFavoriteFiles(req, res, next);
+};
+
+exports.undoFavoriteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be unfavorited
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getFiles(req, res, next);
+
+  const unfavoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { "metadata.isFavorited": false } }
+  );
+  if (unfavoritedFiles.result.nModified > 0) {
+    console.log("made it here");
+    return await this.getFiles(req, res, next);
+  }
 };
 
 exports.moveFiles = async (req, res, next) => {

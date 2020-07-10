@@ -11,6 +11,8 @@ const {
   getFolders,
   getTrashFolders,
   getFavoriteFolders,
+  undoTrashFolders,
+  undoFavoriteFolders,
 } = require("./folderController");
 
 const {
@@ -21,6 +23,9 @@ const {
   getTrashFiles,
   getFavoriteFiles,
   favoriteFiles,
+  undoTrashFiles,
+  undoFavoriteFiles,
+  unfavoriteFiles,
 } = require("./fileController");
 
 exports.getFilesAndFolders = async (req, res, next) => {
@@ -109,6 +114,25 @@ exports.favoriteFilesAndFolders = async (req, res, next) => {
 exports.unfavoriteFilesAndFolders = async (req, res, next) => {
   const files = await unfavoriteFiles(req, res, next);
   const folders = await unfavoriteFolders(req, res, next);
+  return res.json({
+    files,
+    folders,
+    sucess: { message: "Files/folders were successfully unfavorited" },
+  });
+};
+
+exports.undoTrashFilesAndFolders = async (req, res, next) => {
+  const files = await undoTrashFiles(req, res, next);
+  const folders = await undoTrashFolders(req, res, next);
+  return res.json({
+    files,
+    folders,
+    sucess: { message: "Files/folders were successfully restored" },
+  });
+};
+exports.undoFavoriteFilesAndFolders = async (req, res, next) => {
+  const files = await undoFavoriteFiles(req, res, next);
+  const folders = await undoFavoriteFolders(req, res, next);
   return res.json({
     files,
     folders,
