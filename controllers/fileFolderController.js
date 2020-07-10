@@ -26,24 +26,39 @@ exports.getFilesAndFolders = async (req, res, next) => {
   //Return the files for the specific user
   const files = await getFiles();
   const folders = await getFolders();
-  const result = { files, folders };
-  return res.json(result);
-};
-
-exports.getTrashFilesAndFolders = async (req, res, next) => {
-  // Return the files that are in the user's trash
-  const files = await getTrashFiles();
-  const folders = await getTrashFolders();
-  const result = { files, folders };
-  return res.json(result);
+  return res.json({
+    files,
+    folders,
+    success: {
+      message: "Files/folders were succesfully retrieved",
+    },
+  });
 };
 
 exports.getFavoriteFilesAndFolders = async (req, res, next) => {
   // Finds the files that the user favorited
   const files = await getFavoriteFiles();
   const folders = await getFavoriteFolders();
-  const result = { files, folders };
-  return res.json(result);
+  return res.json({
+    files,
+    folders,
+    success: {
+      message: "Favorited Files/folders were succesfully retrieved",
+    },
+  });
+};
+
+exports.getTrashFilesAndFolders = async (req, res, next) => {
+  // Return the files that are in the user's trash
+  const files = await getTrashFiles();
+  const folders = await getTrashFolders();
+  return res.json({
+    files,
+    folders,
+    success: {
+      message: "Trashed Files/folders were succesfully retrieved",
+    },
+  });
 };
 
 exports.trashFilesAndFolders = async (req, res, next) => {
