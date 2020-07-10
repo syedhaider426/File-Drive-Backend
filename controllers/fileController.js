@@ -2,25 +2,14 @@ const Connection = require("../database/Connection");
 const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
-const {
-  trashFolders,
-  deleteFolders,
-  restoreFolders,
-  favoriteFolders,
-  unfavoriteFolders,
-} = require("./folderController");
 
-const {
-  createFiles,
-  findFiles,
-  updateFiles,
-  findFolders,
-} = require("../database/crud");
+const { findFiles, updateFiles } = require("../database/crud");
 
 generateFileArray = (req) => {
   const files = [];
-  if (req.body.selectedFiles.length > 0)
-    req.body.selectedFiles.forEach((file) => {
+  const selectedFiles = req.body.selectedFiles || req.body.tempFiles;
+  if (selectedFiles !== undefined)
+    selectedFiles.forEach((file) => {
       files.push(returnObjectID(file.id));
     });
   return files;
@@ -65,74 +54,42 @@ exports.uploadFile = (req, res, next) => {
   });
 };
 
-exports.getFilesAndFolders = async (req, res, next) => {
+exports.getFiles = async (req, res, next) => {
   //Return the files for the specific user
-  const files = await findFiles({
+  return await findFiles({
     "metadata.user_id": req.user._id,
     "metadata.folder_id": returnObjectID(req.params.folder),
     "metadata.isTrashed": false,
   });
-  const folders = await findFolders({
-    user_id: req.user._id,
-    isTrashed: false,
-  });
-  const result = {
-    files,
-    folders,
-  };
-  return res.json(result);
 };
 
-exports.getTrashFilesAndFolders = async (req, res, next) => {
-  // Return the files that are in the user's trash
-  const files = await findFiles({
+exports.getTrashFiles = async (req, res, next) => {
+  //Return the files for the specific user
+  return await findFiles({
     "metadata.user_id": req.user._id,
     "metadata.isTrashed": true,
   });
-  const folders = await findFolders({
-    user_id: req.user._id,
-    isTrashed: true,
-  });
-  const result = { files, folders };
-  return res.json(result);
 };
 
-exports.getFavoriteFilesAndFolders = async (req, res, next) => {
-  // Finds the files that the user favorited
-  const files = await findFiles({
+exports.getFavoriteFiles = async (req, res, next) => {
+  //Return the files for the specific user
+  return await findFiles({
     "metadata.user_id": req.user._id,
-    isFavorited: true,
     "metadata.isTrashed": false,
-  });
-  const folders = await findFolders({
-    user_id: req.user._id,
     isFavorited: true,
-    isTrashed: false,
   });
-  const result = { files, folders };
-  return res.json(result);
 };
 
-/* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
-/* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
-/* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
 exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
   const files = generateFileArray(req);
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.isTrashed": true,
-    });
+  if (files.length === 0) return await this.getTrashFiles();
   const deletedFilesPromise = files.map(async (file) => {
     await Connection.gfs.delete(file);
   });
   return Promise.all(deletedFilesPromise)
     .then(async () => {
-      return await findFiles({
-        "metadata.user_id": req.user._id,
-        "metadata.isTrashed": true,
-      });
+      return await this.getTrashFiles();
     })
     .catch((err) => {
       // If there is an error with Mongo, throw an error
@@ -147,18 +104,6 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
-exports.deleteFilesAndFolders = async (req, res, next) => {
-  const files = await this.deleteFiles(req, res, next);
-  const folders = await deleteFolders(req, res, next);
-  return res.json({
-    files,
-    folders,
-    success: {
-      message: "Files/folders were succesfully deleted",
-    },
-  });
-};
-
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
   if (files.length === 0)
@@ -166,7 +111,8 @@ exports.trashFiles = async (req, res, next) => {
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.body.folder),
       "metadata.isTrashed": false,
-      isFavorited: req.body.isFavorited || false,
+      isFavorited:
+        req.body.isFavorited !== undefined ? true : { $in: [false, true] },
     });
   /*
    * Trash the files
@@ -190,20 +136,9 @@ exports.trashFiles = async (req, res, next) => {
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.body.folder),
       "metadata.isTrashed": false,
-      isFavorited: req.body.isFavorited || false,
+      isFavorited:
+        req.body.isFavorited !== undefined ? true : { $in: [false, true] },
     });
-};
-
-exports.trashFilesAndFolders = async (req, res, next) => {
-  const files = await this.trashFiles(req, res, next);
-  const folders = await trashFolders(req, res, next);
-  return res.json({
-    files,
-    folders,
-    success: {
-      message: "Files/folders were succesfully trashed",
-    },
-  });
 };
 
 exports.restoreFiles = async (req, res, next) => {
@@ -213,11 +148,7 @@ exports.restoreFiles = async (req, res, next) => {
    * Restore the folders
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
    */
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.isTrashed": true,
-    });
+  if (files.length === 0) return await this.getTrashFiles();
   const restoredFiles = await updateFiles(
     {
       "metadata.user_id": req.user._id,
@@ -225,21 +156,7 @@ exports.restoreFiles = async (req, res, next) => {
     },
     { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
   );
-  if (restoredFiles.result.nModified > 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.isTrashed": true,
-    });
-};
-
-exports.restoreFilesAndFolders = async (req, res, next) => {
-  const files = await this.restoreFiles(req, res, next);
-  const folders = await restoreFolders(req, res, next);
-  return res.json({
-    files,
-    folders,
-    sucess: { message: "Files/folders were successfully restored" },
-  });
+  if (restoredFiles.result.nModified > 0) return await this.getTrashFiles();
 };
 
 exports.renameFile = async (req, res, next) => {
@@ -300,8 +217,10 @@ exports.copyFiles = (req, res, next) => {
     // Bytes get downloaded and written into the writestream
     downloadStream.pipe(writeStream).once("finish", async () => {
       const files = await findFiles({ _id: id });
+      const newFiles = [{ id }];
       return res.json({
         files,
+        newFiles,
         success: {
           message: "Files were sucessfully copied",
         },
@@ -313,67 +232,26 @@ exports.copyFiles = (req, res, next) => {
 exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFileArray(req);
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
-    });
+  if (files.length === 0) return await this.getFiles();
 
   const favoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { isFavorited: true } }
   );
-  if (favoritedFiles.result.nModified > 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
-    });
-};
-
-exports.favoriteFilesAndFolders = async (req, res, next) => {
-  const files = await this.favoriteFiles(req, res, next);
-  const folders = await favoriteFolders(req, res, next);
-  return res.json({
-    files,
-    folders,
-    sucess: { message: "Files/folders were successfully favorited" },
-  });
+  if (favoritedFiles.result.nModified > 0) return await this.getFiles();
 };
 
 exports.unfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
-      isFavorited: false,
-    });
+  if (files.length === 0) return await this.getFavoriteFiles();
 
   const unfavoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { isFavorited: false } }
   );
   if (unfavoritedFiles.result.nModified > 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
-      isFavorited: false,
-    });
-};
-
-exports.unfavoriteFilesAndFolders = async (req, res, next) => {
-  const files = await this.unfavoriteFiles(req, res, next);
-  const folders = await unfavoriteFolders(req, res, next);
-  return res.json({
-    files,
-    folders,
-    sucess: { message: "Files/folders were successfully unfavorited" },
-  });
+    return await this.getFavoriteFiles();
 };
 
 exports.moveFiles = async (req, res, next) => {

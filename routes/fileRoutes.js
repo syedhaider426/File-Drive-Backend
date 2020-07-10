@@ -30,7 +30,7 @@ module.exports = (app) => {
   app.post("/api/files/move", checkAuthenticated, moveFiles);
 
   // @route DELETE - Deletes a file or files if the user is authenticated.
-  app.delete("/api/files/delete", checkAuthenticated, deleteFilesAndFolders);
+  app.post("/api/files/delete", checkAuthenticated, deleteFilesAndFolders);
 
   // @route POST - Renames a file if the user is authenticated.
   app.post("/api/files/rename", checkAuthenticated, renameFile);
