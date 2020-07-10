@@ -7,11 +7,8 @@ const { findFiles, updateFiles } = require("../database/crud");
 
 generateFileArray = (req) => {
   const files = [];
-  let selectedFiles;
-  if (req.body.selectedFiles) selectedFiles = req.body.selectedFiles;
-  else selectedFiles = req.body.tempFiles;
-  if (selectedFiles !== undefined)
-    selectedFiles.forEach((file) => {
+  if (req.body.selectedFiles !== undefined)
+    req.body.selectedFiles.forEach((file) => {
       files.push(returnObjectID(file.id));
     });
   return files;
@@ -88,12 +85,8 @@ exports.deleteFiles = async (req, res, next) => {
   const files = generateFileArray(req);
   if (files.length === 0) return await this.getTrashFiles(req, res, next);
   const deletedFilesPromise = files.map(async (file) => {
-    console.log("Files to delete");
-    console.log(file);
     await Connection.gfs.delete(file);
   });
-  const result = Connection.db.collection("fs.files").find({ _id: files[0] });
-  console.log(result);
   return Promise.all(deletedFilesPromise)
     .then(async () => {
       return await this.getTrashFiles(req, res, next);
@@ -111,10 +104,32 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
+exports.undoCopy = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be deleted permanently
+  const files = generateFileArray(req);
+  const deletedFilesPromise = files.map(async (file) => {
+    await Connection.gfs.delete(file);
+  });
+  return Promise.all(deletedFilesPromise)
+    .then(async () => {
+      const files = await this.getFiles(req, res, next);
+      res.json({ files });
+    })
+    .catch((err) => {
+      // If there is an error with Mongo, throw an error
+      if (err.name === "MongoError")
+        return res.status(404).json({
+          error: {
+            message:
+              "There was an error deleting the selected file(s)/folder(s). Please try again.",
+          },
+        });
+      else next(err);
+    });
+};
+
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
-  console.log(req.body.isFavorited);
-  console.log(files);
   if (files.length === 0)
     return await findFiles({
       "metadata.user_id": req.user._id,
@@ -137,29 +152,13 @@ exports.trashFiles = async (req, res, next) => {
       },
     }
   );
-  if (trashedFiles.result.nModified > 0) {
-    console.log(await findFiles({ filename: "jui.txt" }));
-    console.log(
-      await findFiles({
-        filename: "Copy of jui.txt",
-        "metadata.user_id": req.user._id,
-        "metadata.isTrashed": false,
-      })
-    );
-    console.log(
-      await findFiles({
-        "metadata.user_id": req.user._id,
-        "metadata.isTrashed": false,
-        "metadata.isFavorited": { $in: req.body.isFavorited },
-      })
-    );
+  if (trashedFiles.result.nModified > 0)
     //Return the files for the specific user
     return await findFiles({
       "metadata.user_id": req.user._id,
       "metadata.isTrashed": false,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
-  }
 };
 
 exports.restoreFiles = async (req, res, next) => {
