@@ -5,6 +5,9 @@ const {
   renameFile,
   copyFiles,
   favoriteFiles,
+} = require("../controllers/fileController");
+
+const {
   unfavoriteFilesAndFolders,
   getFilesAndFolders,
   getFavoriteFilesAndFolders,
@@ -13,7 +16,7 @@ const {
   deleteFilesAndFolders,
   restoreFilesAndFolders,
   favoriteFilesAndFolders,
-} = require("../controllers/fileController");
+} = require("../controllers/fileFolderController");
 
 /**
  * This module focuses on the endpoints related to uploading, moving, deleting, and renaming files.

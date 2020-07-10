@@ -24,8 +24,8 @@ const {
 
 exports.getFilesAndFolders = async (req, res, next) => {
   //Return the files for the specific user
-  const files = await getFiles();
-  const folders = await getFolders();
+  const files = await getFiles(req, res, next);
+  const folders = await getFolders(req, res, next);
   return res.json({
     files,
     folders,
@@ -37,8 +37,8 @@ exports.getFilesAndFolders = async (req, res, next) => {
 
 exports.getFavoriteFilesAndFolders = async (req, res, next) => {
   // Finds the files that the user favorited
-  const files = await getFavoriteFiles();
-  const folders = await getFavoriteFolders();
+  const files = await getFavoriteFiles(req, res, next);
+  const folders = await getFavoriteFolders(req, res, next);
   return res.json({
     files,
     folders,
@@ -50,8 +50,8 @@ exports.getFavoriteFilesAndFolders = async (req, res, next) => {
 
 exports.getTrashFilesAndFolders = async (req, res, next) => {
   // Return the files that are in the user's trash
-  const files = await getTrashFiles();
-  const folders = await getTrashFolders();
+  const files = await getTrashFiles(req, res, next);
+  const folders = await getTrashFolders(req, res, next);
   return res.json({
     files,
     folders,
