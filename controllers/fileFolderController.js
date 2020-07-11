@@ -1,7 +1,5 @@
 const Connection = require("../database/Connection");
-const formidable = require("formidable");
-const fs = require("fs");
-const returnObjectID = require("../database/returnObjectID");
+
 const {
   trashFolders,
   deleteFolders,
@@ -29,6 +27,7 @@ const {
   unfavoriteFiles,
   homeUnfavoriteFiles,
 } = require("./fileController");
+const { findFolders } = require("../database/crud");
 
 exports.getFilesAndFolders = async (req, res, next) => {
   //Return the files for the specific user
@@ -150,4 +149,34 @@ exports.homeUnfavoriteFilesAndFolders = async (req, res, next) => {
     folders,
     sucess: { message: "Files/folders were successfully unfavorited" },
   });
+};
+
+exports.deleteAll = async (req, res, next) => {
+  const files = await getTrashFiles(req, res, next);
+  const folders = await getTrashFolders(req, res, next);
+  req.body.selectedFiles = files;
+  const filesResult = await deleteFiles(req, res, next);
+  req.body.selectedFolders = folders;
+  const foldersResult = await deleteFolders(req, res, next);
+  if (filesResult.length == 0 && foldersResult.length === 0)
+    res.json({
+      success: {
+        message: "Succesfully emptied trash.",
+      },
+    });
+};
+
+exports.restoreAll = async (req, res, next) => {
+  const files = await getTrashFiles(req, res, next);
+  const folders = await getTrashFolders(req, res, next);
+  req.body.selectedFiles = files;
+  const filesResult = await restoreFiles(req, res, next);
+  req.body.selectedFolders = folders;
+  const foldersResult = await restoreFolders(req, res, next);
+  if (filesResult.length == 0 && foldersResult.length === 0)
+    res.json({
+      success: {
+        message: "Succesfully restored trash.",
+      },
+    });
 };

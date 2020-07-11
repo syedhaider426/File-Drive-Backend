@@ -9,7 +9,10 @@ generateFileArray = (req) => {
   const files = [];
   if (req.body.selectedFiles !== undefined)
     req.body.selectedFiles.forEach((file) => {
-      files.push(returnObjectID(file.id));
+      let id;
+      if (file.id) id = file.id;
+      else id = file._id; //only used when deleting all files
+      files.push(returnObjectID(id));
     });
   return files;
 };

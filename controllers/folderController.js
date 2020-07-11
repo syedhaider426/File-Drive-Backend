@@ -14,7 +14,10 @@ generateFolderArray = (req) => {
   const folders = [];
   if (req.body.selectedFolders.length > 0)
     req.body.selectedFolders.forEach((folder) => {
-      folders.push(returnObjectID(folder.id));
+      let id;
+      if (folder.id) id = folder.id;
+      else id = folder._id; //only used when deleting all files
+      folders.push(returnObjectID(id));
     });
 
   return folders;
