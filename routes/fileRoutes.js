@@ -21,6 +21,7 @@ const {
   undoFavoriteFilesAndFolders,
   homeUnfavoriteFilesAndFolders,
   deleteAll,
+  restoreAll,
 } = require("../controllers/fileFolderController");
 
 /**
@@ -99,6 +100,9 @@ module.exports = (app) => {
   // @route GET - Gets trashed files and folders for users
   app.get("/api/files/trash", checkAuthenticated, getTrashFilesAndFolders);
 
-  // @route DELETE - Deletes all files and folders for user
+  // @route post - Deletes all files and folders for user
   app.post("/api/files/deleteAll", checkAuthenticated, deleteAll);
+
+  // @route post - Restore all files and folders for user
+  app.post("/api/files/restoreAll", checkAuthenticated, restoreAll);
 };
