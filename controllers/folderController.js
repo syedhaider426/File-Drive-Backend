@@ -94,7 +94,7 @@ exports.renameFolder = async (req, res, next) => {
 
   // Validate user inputs
   const validation = await schema.validate({
-    folder: req.body.folder,
+    folder: req.body.newName,
   });
 
   // Return error if any inputs do not satisfy the schema
@@ -108,10 +108,10 @@ exports.renameFolder = async (req, res, next) => {
   // Updates the folder with the new folder name
   const renamedFolderResult = await updateFolders(
     {
-      _id: returnObjectID(req.body.folderID),
+      _id: returnObjectID(req.body.id),
     },
     {
-      $set: { foldername: req.body.folder },
+      $set: { foldername: req.body.newName },
     }
   );
 
@@ -295,4 +295,20 @@ exports.moveFolders = async (req, res, next) => {
         message: "Folders were moved successfully.",
       },
     });
+};
+
+exports.homeUnfavoriteFolders = async (req, res, next) => {
+  // Folders represent an array of folders that will be unfavorited
+  const folders = generateFolderArray(req);
+  if (folders.length === 0) return await this.getFolders(req, res, next);
+
+  // Unfavorites the selected folder
+  const unfavoritedFolders = await updateFolders(
+    { _id: { $in: folders } },
+    { $set: { isFavorited: false } }
+  );
+
+  // If the folders were unfavorited, return a success response back to the client
+  if (unfavoritedFolders.result.nModified > 0)
+    return await this.getFolders(req, res, next);
 };

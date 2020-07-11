@@ -2,7 +2,7 @@ const Connection = require("../database/Connection");
 const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
-
+const Joi = require("@hapi/joi");
 const { findFiles, updateFiles } = require("../database/crud");
 
 generateFileArray = (req) => {
@@ -11,7 +11,6 @@ generateFileArray = (req) => {
     req.body.selectedFiles.forEach((file) => {
       files.push(returnObjectID(file.id));
     });
-  console.log("Selectted files", files);
   return files;
 };
 
@@ -125,7 +124,6 @@ exports.trashFiles = async (req, res, next) => {
       $set: {
         "metadata.isTrashed": true,
         trashedAt: new Date(),
-        "metadata.isFavorited": false,
       },
     }
   );
@@ -177,25 +175,46 @@ exports.undoTrashFiles = async (req, res, next) => {
 };
 
 exports.renameFile = async (req, res, next) => {
+  // Create JOI Schema
+  const schema = Joi.object({
+    file: Joi.string().required().messages({
+      "string.empty": `File cannot be empty.`,
+    }),
+  });
+
+  // Validate user inputs
+  const validation = await schema.validate({
+    file: req.body.newName,
+  });
+
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
+
   try {
     // Finds file and renames it
     const renamedFile = await Connection.gfs.rename(
-      returnObjectID(req.body.fileID),
+      returnObjectID(req.body.id),
       req.body.newName
     );
-    if (renamedFile.result.nModified > 0)
+    if (renamedFile === undefined) {
       return res.json({
         success: {
           message: "File was sucessfully renamed",
         },
       });
+    }
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {
           message:
-            "There was an error restoring the selected file(s). Please try again.",
+            "There was an error renaming the selected file. Please try again.",
         },
       });
     else next(err);
@@ -307,7 +326,6 @@ exports.undoFavoriteFiles = async (req, res, next) => {
     { $set: { "metadata.isFavorited": false } }
   );
   if (unfavoritedFiles.result.nModified > 0) {
-    console.log("made it here");
     return await this.getFiles(req, res, next);
   }
 };
@@ -343,4 +361,17 @@ exports.moveFiles = async (req, res, next) => {
       });
     else next(err);
   }
+};
+
+exports.homeUnfavoriteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be unfavorited
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getFiles(req, res, next);
+
+  const unfavoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { "metadata.isFavorited": false } }
+  );
+  if (unfavoritedFiles.result.nModified > 0)
+    return await this.getFiles(req, res, next);
 };
