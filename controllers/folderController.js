@@ -26,6 +26,7 @@ generateFolderArray = (req) => {
 exports.getFolders = async (req, res, next) => {
   return await findFolders({
     user_id: req.user._id,
+    parent_id: returnObjectID(req.params.folder),
     isTrashed: false,
   });
 };
@@ -288,7 +289,7 @@ exports.moveFolders = async (req, res, next) => {
       _id: { $in: folders },
     },
     {
-      $set: { parent_id: returnObjectID(req.body.moveFolder) },
+      $set: { parent_id: returnObjectID(req.body.movedFolder) },
     }
   );
   // If the folders were moved successfully, return a success response back to the client

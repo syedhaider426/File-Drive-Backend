@@ -3,7 +3,8 @@ const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 const Joi = require("@hapi/joi");
-const { findFiles, updateFiles } = require("../database/crud");
+const { findFiles, updateFiles, updateFolders } = require("../database/crud");
+const { getFolders } = require("./folderController");
 
 generateFileArray = (req) => {
   const files = [];
@@ -112,6 +113,7 @@ exports.trashFiles = async (req, res, next) => {
   if (files.length === 0)
     return await findFiles({
       "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
       "metadata.isTrashed": false,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
@@ -134,6 +136,7 @@ exports.trashFiles = async (req, res, next) => {
     //Return the files for the specific user
     return await findFiles({
       "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
       "metadata.isTrashed": false,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
@@ -336,36 +339,45 @@ exports.undoFavoriteFiles = async (req, res, next) => {
 exports.moveFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be moved to a new location
   const files = generateFileArray(req);
-
-  try {
-    const movedFiles = await updateFiles(
+  const folders = generateFolderArray(req);
+  let movedFiles = [];
+  let updatedFiles = [];
+  if (files.length > 0) {
+    movedFiles = await updateFiles(
       {
         _id: { $in: files },
       },
       {
         $set: {
-          folder_id: returnObjectID(req.body.folder),
+          "metadata.folder_id": returnObjectID(req.body.movedFolder),
         },
       }
     );
-    if (movedFiles.result.nModified > 0)
-      return res.json({
-        success: {
-          message: "Files were successfully moved",
+    updatedFiles = await this.getFiles(req, res, next);
+  } else updatedFiles = await this.getFiles(req, res, next);
+  let movedFolders = [];
+  let updatedFolders = [];
+  if (folders.length > 0) {
+    movedFolders = await updateFolders(
+      {
+        _id: { $in: folders },
+      },
+      {
+        $set: {
+          parent_id: returnObjectID(req.body.movedFolder),
         },
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message: "There was an error moving the file(s). Please try again.",
-        },
-      });
-    else next(err);
-  }
+      }
+    );
+    updatedFolders = await getFolders(req, res, next);
+  } else updatedFolders = await getFolders(req, res, next);
+  return res.json({
+    success: {
+      message: "Files/Folders were successfully moved",
+    },
+    files: updatedFiles,
+    folders: updatedFolders,
+  });
 };
-
 exports.homeUnfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);

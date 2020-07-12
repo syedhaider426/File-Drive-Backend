@@ -4,7 +4,6 @@ const {
   moveFiles,
   renameFile,
   copyFiles,
-  favoriteFiles,
   undoCopy,
 } = require("../controllers/fileController");
 
@@ -51,14 +50,18 @@ module.exports = (app) => {
   app.post("/api/files/undoCopy", checkAuthenticated, undoCopy);
 
   // @route POST - Sends file to trash if the user is authenticated.
-  app.post("/api/files/trash", checkAuthenticated, trashFilesAndFolders);
+  app.post(
+    "/api/files/trash/:folder",
+    checkAuthenticated,
+    trashFilesAndFolders
+  );
 
   // @route POST - Restores a file if the user is authenticated.
   app.post("/api/files/restore", checkAuthenticated, restoreFilesAndFolders);
 
   // @route POST - Restores a file or folder if the user accidentally trashes it.
   app.post(
-    "/api/files/undoTrash",
+    "/api/files/undoTrash/:folder",
     checkAuthenticated,
     undoTrashFilesAndFolders
   );
@@ -88,17 +91,20 @@ module.exports = (app) => {
   );
 
   // @route GET - Gets files and folders for users
-  app.get("/api/files/home", checkAuthenticated, getFilesAndFolders);
+  app.get("/api/drive/home", checkAuthenticated, getFilesAndFolders);
+
+  // @route GET - Gets files and folders for users
+  app.get("/api/drive/folders/:folder", checkAuthenticated, getFilesAndFolders);
 
   // @route GET - Gets favorited files and folders for users
   app.get(
-    "/api/files/favorites",
+    "/api/drive/favorites",
     checkAuthenticated,
     getFavoriteFilesAndFolders
   );
 
   // @route GET - Gets trashed files and folders for users
-  app.get("/api/files/trash", checkAuthenticated, getTrashFilesAndFolders);
+  app.get("/api/drive/trash", checkAuthenticated, getTrashFilesAndFolders);
 
   // @route post - Deletes all files and folders for user
   app.post("/api/files/deleteAll", checkAuthenticated, deleteAll);
