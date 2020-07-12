@@ -156,8 +156,10 @@ exports.deleteFolders = async (req, res, next) => {
 
 exports.trashFolders = async (req, res, next) => {
   const folders = generateFolderArray(req);
-  if (folders.length === 0) return await this.getFolders(req, res, next);
-
+  if (folders.length === 0 && req.body.isFavorited.length === 2)
+    return await this.getFolders(req, res, next);
+  else if (folders.length === 0 && req.body.isFavorited.length === 1)
+    return await this.getFavoriteFolders(req, res, next);
   let trashedFolders = await updateFolders(
     {
       _id: { $in: folders },
@@ -166,9 +168,10 @@ exports.trashFolders = async (req, res, next) => {
       $set: { isTrashed: true, trashedAt: new Date(), isFavorited: false },
     }
   );
-  if (trashedFolders.result.nModified > 0)
+  if (trashedFolders.result.nModified > 0 && req.body.isFavorited.length === 2)
     //Return the folders for the specific user
     return await this.getFolders(req, res, next);
+  else return await this.getFavoriteFolders(req, res, next);
 };
 
 exports.restoreFolders = async (req, res, next) => {

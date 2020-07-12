@@ -110,6 +110,7 @@ exports.deleteFiles = async (req, res, next) => {
 
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
+  console.log(req.body.isFavorited);
   if (files.length === 0)
     return await findFiles({
       "metadata.user_id": req.user._id,

@@ -56,12 +56,22 @@ module.exports = (app) => {
     trashFilesAndFolders
   );
 
+  // @route POST - Sends file to trash if the user is authenticated.
+  app.post("/api/files/trash", checkAuthenticated, trashFilesAndFolders);
+
   // @route POST - Restores a file if the user is authenticated.
   app.post("/api/files/restore", checkAuthenticated, restoreFilesAndFolders);
 
   // @route POST - Restores a file or folder if the user accidentally trashes it.
   app.post(
     "/api/files/undoTrash/:folder",
+    checkAuthenticated,
+    undoTrashFilesAndFolders
+  );
+
+  // @route POST - Restores a file or folder if the user accidentally trashes it.
+  app.post(
+    "/api/files/undoTrash",
     checkAuthenticated,
     undoTrashFilesAndFolders
   );
