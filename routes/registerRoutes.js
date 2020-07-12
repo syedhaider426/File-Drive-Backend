@@ -4,12 +4,37 @@ const {
   confirmUser,
   resendVerificationEmail,
 } = require("../controllers/registerUserController");
-const checkToken = require("../middlewares/requireToken");
+const passport = require("passport");
 
+/**
+ * This module focuses on the endpoints related to registering a user, logging in the user, and resending email verifications.
+ * @param {*} app
+ */
 module.exports = (app) => {
-  app.post("/register", checkNotAuthenticated, register);
+  // @route POST - Registers a user if they are not authenticated.
+  app.post("/api/user/register", checkNotAuthenticated, register);
 
-  app.get("/confirmRegistration", checkToken, confirmUser);
+  // @route GET - Verifies the user's email if they provide the token that is sent to their email.
+  app.get("/confirmRegistration", confirmUser);
 
-  app.post("/resendEmailVerification", resendVerificationEmail);
+  // @route POST - Resends an confirmation email to user if they did not their confirm their account.
+  app.post("/api/user/resendEmailVerification", resendVerificationEmail);
+
+  // @route POST - Logs in the user if they are not authenticated and provide the proper credentials.
+  app.post("/api/user/login", checkNotAuthenticated, (req, res, next) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) next(err);
+      if (!user)
+        return res.status(401).json({ error: { message: "Unable to login" } });
+      req.login(user, (err) => {
+        if (err) next(err);
+        return res.json({ success: { message: "Logged in succesfully" } });
+      });
+    })(req, res, next);
+  });
+
+  app.get("/logout", (req, res) => {
+    req.session.destroy();
+    res.redirect("/");
+  });
 };

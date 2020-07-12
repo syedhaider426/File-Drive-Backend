@@ -1,122 +1,67 @@
 const bcrypt = require("bcrypt");
 const Connection = require("../database/Connection");
-const crypto = require("crypto");
+const Joi = require("@hapi/joi");
+const jwt = require("jsonwebtoken");
+const returnObjectID = require("../database/returnObjectID");
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
-const Joi = require("@hapi/joi");
 sgMail.setApiKey(keys.sendgrid_api_key);
 
-register = async (req, res) => {
+exports.register = async (req, res, next) => {
+  //Create JOI schema
   const schema = Joi.object({
-    email: Joi.string().email().required(),
-    password: Joi.string().required(),
-    repeat_password: Joi.ref("password"),
+    email: Joi.string().email().required().messages({
+      "string.email": `Please provide a proper email address.`,
+      "string.empty": `Email cannot be empty.`,
+    }),
+    password: Joi.string().required().messages({
+      "string.empty": `Password cannot be empty.`,
+    }),
+    repeat_password: Joi.valid(Joi.ref("password")).messages({
+      "any.only": `Confirmed password does not match entered password`,
+    }),
   });
-  try {
-    await schema.validate({
+
+  // Validate user inputs
+  const validation = await schema.validate(
+    {
       email: req.body.email,
       password: req.body.password,
       repeat_password: req.body.confirmPassword,
-    });
-  } catch (err) {
-    return res.redirect("/register");
-  }
+    },
+    { abortEarly: false }
+  );
 
-  const db = Connection.db;
-  const users = db.collection("users");
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
+
   try {
-    const email = await users.findOne(
-      { email: req.body.email },
-      {
-        projection: {
-          email: 1,
-        },
-      }
-    );
-    if (email) return res.redirect("/register");
+    // Hash the inputted password
     const password = await bcrypt.hash(req.body.password, 10);
-    const user = {
+
+    // Create new user
+    const newUser = await Connection.db.collection("users").insertOne({
       email: req.body.email,
       password: password,
       isVerified: false,
-    };
-    let result = await users.insertOne(user);
-    const newUserID = result.insertedId;
-    const token = {
-      userID: newUserID,
-      path: "/confirmRegistration",
-      token: crypto.randomBytes(16).toString("hex"),
-      createdAt: new Date(),
-    };
-    await db.collection("tokens").insertOne(token);
-    let mailOptions = {
-      from: keys.email,
-      to: req.body.email,
-      subject: "Account Verification - GDrive Clone",
-      text:
-        "Hello,\n\n" +
-        "Please verify your account by clicking the link: \nhttp://" +
-        req.headers.host +
-        "/confirmRegistration?token=" +
-        token.token +
-        "\n",
-    };
-    await sgMail.send(mailOptions);
-    if (!result) return res.redirect("/register");
-    return res.redirect("/verification");
-  } catch (err) {
-    console.error(err);
-  }
-};
+    });
 
-confirmUser = async (req, res) => {
-  const db = Connection.db;
-  const tokens = db.collection("tokens");
-  try {
-    const result = await tokens.findOne({ token: req.query.token });
-    if (!result) res.redirect("/register");
-    const users = db.collection("users");
-    await users.updateOne(
-      { _id: result.userID },
-      { $set: { isVerified: true } }
-    );
-    return res.redirect("/confirmationSuccess");
-  } catch (err) {
-    console.error("Err", err);
-  }
-};
-
-resendVerificationEmail = async (req, res) => {
-  const schema = Joi.object({
-    email: Joi.string().email().required(),
-  });
-  try {
-    await schema.validate({ email: req.body.email });
-  } catch (err) {
-    return res.redirect("/forgotPassword");
-  }
-  const db = Connection.db;
-  const users = db.collection("users");
-  try {
-    const user = await users.findOne(
-      { email: req.body.email },
+    // Create JWT
+    const token = await jwt.sign(
+      { _id: newUser.insertedId },
+      keys.jwtPrivateKey,
       {
-        projection: {
-          email: 1,
-          isVerified: 1,
-        },
+        expiresIn: "1h",
       }
     );
-    if (!user) return res.redirect("/forgotPassword");
-    if (user.isVerified) return res.redirect("/confirmationSuccess");
-    const token = {
-      userID: user._id,
-      path: "/newPassword",
-      token: crypto.randomBytes(16).toString("hex"),
-      createdAt: new Date(),
-    };
-    await db.collection("tokens").insertOne(token);
-    let mailOptions = {
+
+    // Set details for email for SendGrid to send
+    const mailOptions = {
       from: keys.email,
       to: req.body.email,
       subject: "Account Verification - GDrive Clone",
@@ -125,14 +70,153 @@ resendVerificationEmail = async (req, res) => {
         "Please verify your account by clicking the link: \nhttp://" +
         req.headers.host +
         "/confirmRegistration?token=" +
-        token.token +
-        "\n",
+        token +
+        "\n\n" +
+        "If you have received this email by mistake, simply delete it.",
     };
+
+    // Send email via SendGrid
     await sgMail.send(mailOptions);
-    return res.redirect("/verification");
+
+    // Return success status back to client
+    return res.status(201).json({
+      success: {
+        message:
+          "You have successfully registered your account. Please check your email to confirm your account.",
+      },
+    });
   } catch (err) {
-    console.error(err);
+    // If email already exists, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message: "Email is already registered. Please try again.",
+        },
+      });
+    else next(err);
   }
 };
 
-module.exports = { register, confirmUser, resendVerificationEmail };
+exports.confirmUser = async (req, res, next) => {
+  try {
+    // Verify token
+    const user = await jwt.verify(req.query.token, keys.jwtPrivateKey);
+
+    // Throw error if token expired or is invalid
+    if (!user)
+      return res.status(400).json({
+        error: {
+          message:
+            "There was an error confirming your email. Please try again.",
+        },
+      });
+
+    // Verify the user by updating isVerified field in the db
+    const verifiedUser = await Connection.db
+      .collection("users")
+      .updateOne(
+        { _id: returnObjectID(user._id) },
+        { $set: { isVerified: true } }
+      );
+
+    // On successful update, send the 'success' response to the client
+    if (verifiedUser.result.nModified === 1)
+      return res.json({
+        sucess: {
+          message: "You have succesfully registered your account.",
+        },
+      });
+    // This error occurs when a user had a confirmation email sent to their account, but never registered a account.
+    else
+      return res.status(404).json({
+        error: {
+          message:
+            "Account could not be confirmed at this time. Please try again later.",
+        },
+      });
+  } catch (err) {
+    // If Mongo is unable to verify the user, return an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "Account could not be confirmed at this time. Please try again later.",
+        },
+      });
+    else next(err);
+  }
+};
+
+exports.resendVerificationEmail = async (req, res, next) => {
+  // Create JOI Schema
+  const schema = Joi.object({
+    email: Joi.string().email().required().messages({
+      "string.email": `Please provide a proper email address.`,
+      "any.required": `Email cannot be empty.`,
+    }),
+  });
+  // Validate user inputs
+  const validation = await schema.validate({ email: req.body.email });
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
+
+  try {
+    // Finds user based off email
+    const user = await Connection.db
+      .collection("users")
+      .findOne({ email: req.body.email });
+
+    // If the user is already verified, notify them to sign in
+    if (user.isVerified)
+      return res.json({
+        success: {
+          message: "You have already confirmed your account. Please sign in.",
+        },
+      });
+
+    // Generate JWT
+    const token = await jwt.sign({ _id: user._id || "" }, keys.jwtPrivateKey, {
+      expiresIn: "1h",
+    });
+
+    // Set mail content for SendGrid to send
+    const mailOptions = {
+      from: keys.email,
+      to: req.body.email,
+      subject: "Account Verification - GDrive Clone",
+      text:
+        "Hello,\n\n" +
+        "Please verify your account by clicking the link: \nhttp://" +
+        req.headers.host +
+        "/confirmRegistration?token=" +
+        token +
+        "\n\n" +
+        "If you have received this email by mistake, simply delete it.",
+    };
+
+    // Send email via SendGrid
+    await sgMail.send(mailOptions);
+
+    // Return success status back to client
+    return res.status(201).json({
+      success: {
+        message: "Please check your email to confirm your account.",
+      },
+    });
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an issue sending a new confirmation mail. Please try again.",
+        },
+      });
+    else next(err);
+  }
+};

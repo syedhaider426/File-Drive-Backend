@@ -7,7 +7,7 @@ module.exports = (app) => {
   app.get("/home", checkAuthenticated, (req, res) => {
     res.send(`
           <h2>With <code>"File Upload"</code></h2>
-          <form action="/api/upload" enctype="multipart/form-data" method="post">
+          <form action="/api/files/upload" enctype="multipart/form-data" method="post">
             <div>Text field title: <input type="text" name="title" /></div>
             <div><label class="File">File:</label> <input type="file" name="someExpressFiles" multiple="multiple" /></div>
             <input type="submit" value="Upload" />
@@ -17,6 +17,12 @@ module.exports = (app) => {
           <div>
             <a href="/accountSettings">Account Settings</a>
           </div>
+          <div>
+          <a href="/trash">View Trash</a>
+        </div>
+        <form action="/logout" method="get" name="Logout">
+        <button id="logout" type="submit" value="Log Out">Sign Out</button>
+      </form>
           
         `);
   });
@@ -51,7 +57,7 @@ module.exports = (app) => {
   app.get("/register", checkNotAuthenticated, (req, res) => {
     res.send(`
               <h2>With <code>"Register"</code></h2>
-              <form action="/register" method="post" name="Register">
+              <form action="/api/user/register" method="post" name="Register">
                 <div><label class="email">Email:</label><input type="text" name="email" /></div>
                 <div><label class="password">Password:</label> <input type="text" name="password" /></div>
                 <div><label class="confirmPassword">Confirm Password:</label> <input type="text" name="confirmPassword" /></div>
@@ -67,10 +73,18 @@ module.exports = (app) => {
                   </div>
               `);
   });
+  app.get("/confirmationSuccess", (req, res) => {
+    res.send(`
+                <h2>With <code>"Verification"</code></h2>
+                  <div>
+                    Thank you for verifying your account.</label>
+                  </div>
+              `);
+  });
   app.get("/verificationEmail", (req, res) => {
     res.send(`
               <h2>With <code>"Send Email to Confirm User"</code></h2>
-              <form action="/resendEmailVerification" method="post" name="resendEmailVerification">
+              <form action="/api/user/resendEmailVerification" method="post" name="resendEmailVerification">
                 <div><label class="email">Current Email:</label><input type="text" name="email" /></div>     
                 <button type="submit" value="Confirm">Confirm</button>
               </form>

@@ -2,173 +2,392 @@ const Connection = require("../database/Connection");
 const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
+const Joi = require("@hapi/joi");
+const { findFiles, updateFiles, updateFolders } = require("../database/crud");
+const { getFolders } = require("./folderController");
 
-uploadFile = (req, res) => {
-  const gfs = Connection.gfs;
-  //Pass in an array of files
-  const form = new formidable.IncomingForm();
-  (files = []), (paths = []);
-  form.on("file", (field, file) => {
-    files.push(file.name);
-    paths.push(file.path);
-  });
-  form.parse(req);
-  form.once("end", () => {
-    let options = {
-      metadata: {
-        user: req.user._id,
-        lastUpdatedOn: new Date(),
-        folder: req.params.folder ? returnObjectID(req.params.folder) : "",
-      },
-    };
-    for (let i = 0; i < files.length; i++) {
-      let writestream = gfs.openUploadStream(files[i], options);
-      fs.createReadStream(paths[i]).pipe(writestream);
-    }
-    if (req.params.folder) return res.redirect(`/folder/${req.params.folder}`);
-    else return res.redirect("/home");
-  });
-};
-
-getFiles = async (req, res) => {
-  const db = Connection.db;
-  const files = db.collection("fs.files");
-  // Without a callback, toArray() returns a Promise.
-  // Because our functionOne is an "async" function, you do not need "await" for the return value.
-  //https://stackoverflow.com/questions/16002659/how-to-query-nested-objects
-  try {
-    return await files
-      .find({
-        "metadata.user": req.user._id,
-        "metadata.folder": req.params.folder
-          ? returnObjectID(req.params.folder)
-          : "",
-      })
-      .toArray();
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-moveFiles = async (req, res) => {
-  //Get file collection
-  const db = Connection.db;
-  const files = db.collection("fs.files");
-
-  const fileArray = [];
-  //searches for user and file in files
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else
-    req.body.files.forEach((file) => {
-      fileArray.push(returnObjectID(file));
+generateFileArray = (req) => {
+  const files = [];
+  if (req.body.selectedFiles !== undefined)
+    req.body.selectedFiles.forEach((file) => {
+      let id;
+      if (file.id) id = file.id;
+      else id = file._id; //only used when deleting all files
+      files.push(returnObjectID(id));
     });
-  // Need current user, folder, file
-  // Need folder
-  try {
-    const file = files
-      .update(
-        {
-          _id: { $in: fileArray },
-          "metadata.user": returnObjectID(req.user._id),
-        },
-        {
-          $set: {
-            "metadata.folder": returnObjectID(req.body.folder)
-              ? returnObjectID(req.body.folder)
-              : "",
-          },
-        }
-      )
-      .toArray()
-      .then((res) => {
-        if (!res) return res.redirect("/home");
-        return res.redirect("/viewFolders");
-      });
-  } catch (err) {
-    console.log(err);
-  }
-
-  //updates the folder field
+  return files;
 };
 
-/* https://stackoverflow.com/questions/37576685/using-async-await-with-a-foreach-loop */
-/* https://stackoverflow.com/questions/31413749/node-js-promise-all-and-foreach*/
-/* https://dev.to/jamesliudotcc/how-to-use-async-await-with-map-and-promise-all-1gb5 */
-deleteFiles = async (req, res) => {
-  //Get file collection
-  const db = Connection.db;
-  const files = db.collection("fs.files");
-  let fileArray = [];
-  //searches for user and file in files
-  if (typeof req.body.files === "string")
-    fileArray.push(returnObjectID(req.body.files));
-  else
-    req.body.files.forEach((file) => {
-      fileArray.push(returnObjectID(file));
-    });
-  // Need current user, folder, file
-  // Need folder
-
-  try {
-    const f = await files
-      .find({
-        _id: { $in: fileArray },
-        "metadata.user": returnObjectID(req.user._id),
-      })
-      .project({
-        _id: 1,
-      })
-      .toArray();
-    f.map(async (file) => {
-      await gfs.delete(file._id);
-    });
-    res.redirect("/viewFolders");
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-renameFile = async (req, res) => {
-  const files = Connection.db.collection("fs.files");
-  const result = await files.updatOne(
-    {
-      _id: req.body.fileID,
-      "metadata.user": req.user._id,
-    },
-    {
-      $set: { filename: req.body.newName },
-    }
-  );
-  if (!result) return res.redirect("/error");
-  return res.redirect("/viewFolders");
-};
-
-copyFile = (req, res) => {
-  const gfs = Connection.gfs;
-  let options = {
+exports.uploadFile = (req, res, next) => {
+  const options = {
     metadata: {
-      user: req.user._id,
-      lastUpdatedOn: new Date(),
-      folder: req.body.folder ? returnObjectID(req.body.folder) : "",
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.params.folder),
+      isFavorited: false,
     },
   };
-  let downloadStream = gfs.openDownloadStream(returnObjectID(req.body.fileID));
-  let writeStream = gfs.openUploadStream(
-    `Copy of ${req.body.fileName}`,
-    options
-  );
-  downloadStream.pipe(writeStream).once("finish", () => {
-    console.log("finished");
-    res.redirect("/viewFolders");
+  //Pass in an array of files
+  const form = new formidable.IncomingForm(req, res, next);
+
+  //This is necessary to trigger the events
+  form.parse(req);
+
+  // File has been received
+  form.on("file", (field, file) => {
+    const writestream = Connection.gfs.openUploadStream(file.name, options);
+    fs.createReadStream(file.path)
+      .pipe(writestream)
+      .once("finish", () => {
+        console.log("Finished");
+      });
+  });
+
+  // If an error occurs, return an error response back to the client
+  form.on("error", (err) => {
+    if (err) next(err);
+  });
+
+  // Once it is finishing parsing the file, upload the file to GridFSBucket
+  form.once("end", () => {
+    return res.json({
+      success: {
+        message: "Files were sucessfully uploaded",
+      },
+    });
   });
 };
 
-module.exports = {
-  uploadFile,
-  getFiles,
-  moveFiles,
-  deleteFiles,
-  renameFile,
-  copyFile,
+exports.getFiles = async (req, res, next) => {
+  //Return the files for the specific user
+  return await findFiles({
+    "metadata.user_id": req.user._id,
+    "metadata.folder_id": returnObjectID(req.params.folder),
+    "metadata.isTrashed": false,
+  });
+};
+
+exports.getTrashFiles = async (req, res, next) => {
+  //Return the files for the specific user
+  return await findFiles({
+    "metadata.user_id": req.user._id,
+    "metadata.isTrashed": true,
+  });
+};
+
+exports.getFavoriteFiles = async (req, res, next) => {
+  //Return the files for the specific user
+  return await findFiles({
+    "metadata.user_id": req.user._id,
+    "metadata.isTrashed": false,
+    "metadata.isFavorited": true,
+  });
+};
+
+exports.deleteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be deleted permanently
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getTrashFiles(req, res, next);
+  const deletedFilesPromise = files.map(async (file) => {
+    await Connection.gfs.delete(file);
+  });
+  return Promise.all(deletedFilesPromise)
+    .then(async () => {
+      return await this.getTrashFiles(req, res, next);
+    })
+    .catch((err) => {
+      // If there is an error with Mongo, throw an error
+      if (err.name === "MongoError")
+        return res.status(404).json({
+          error: {
+            message:
+              "There was an error deleting the selected file(s)/folder(s). Please try again.",
+          },
+        });
+      else next(err);
+    });
+};
+
+exports.trashFiles = async (req, res, next) => {
+  const files = generateFileArray(req);
+  console.log(req.body.isFavorited);
+  if (files.length === 0)
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+      "metadata.isFavorited": { $in: req.body.isFavorited },
+    });
+  /*
+   * Trash the files
+   * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
+   * will expire after 30 days, ther
+   * efore, deleting the folder and file
+   */
+  let trashedFiles = await updateFiles(
+    { _id: { $in: files } },
+    {
+      $set: {
+        "metadata.isTrashed": true,
+        trashedAt: new Date(),
+      },
+    }
+  );
+  if (trashedFiles.result.nModified > 0)
+    //Return the files for the specific user
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+      "metadata.isFavorited": { $in: req.body.isFavorited },
+    });
+};
+
+exports.restoreFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be trashed temporarily
+  const files = generateFileArray(req);
+  /*
+   * Restore the folders
+   * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
+   */
+  if (files.length === 0) return await this.getTrashFiles(req, res, next);
+  const restoredFiles = await updateFiles(
+    {
+      "metadata.user_id": req.user._id,
+      _id: { $in: files },
+    },
+    { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
+  );
+  if (restoredFiles.result.nModified > 0)
+    return await this.getTrashFiles(req, res, next);
+};
+
+exports.undoTrashFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be trashed temporarily
+  const files = generateFileArray(req);
+  /*
+   * Restore the folders
+   * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
+   */
+  if (files.length === 0) return await this.getFiles(req, res, next);
+  const restoredFiles = await updateFiles(
+    {
+      "metadata.user_id": req.user._id,
+      _id: { $in: files },
+    },
+    { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
+  );
+  if (restoredFiles.result.nModified > 0)
+    return await this.getFiles(req, res, next);
+};
+
+exports.renameFile = async (req, res, next) => {
+  // Create JOI Schema
+  const schema = Joi.object({
+    file: Joi.string().required().messages({
+      "string.empty": `File cannot be empty.`,
+    }),
+  });
+
+  // Validate user inputs
+  const validation = await schema.validate({
+    file: req.body.newName,
+  });
+
+  // Return error if any inputs do not satisfy the schema
+  if (validation.error)
+    return res.status(400).json({
+      error: {
+        message: validation.error,
+      },
+    });
+
+  try {
+    // Finds file and renames it
+    const renamedFile = await Connection.gfs.rename(
+      returnObjectID(req.body.id),
+      req.body.newName
+    );
+    if (renamedFile === undefined) {
+      return res.json({
+        success: {
+          message: "File was sucessfully renamed",
+        },
+      });
+    }
+  } catch (err) {
+    // If there is an error with Mongo, throw an error
+    if (err.name === "MongoError")
+      return res.status(404).json({
+        error: {
+          message:
+            "There was an error renaming the selected file. Please try again.",
+        },
+      });
+    else next(err);
+  }
+};
+
+exports.copyFiles = (req, res, next) => {
+  const files = [];
+  const filesSelectedLength = req.body.selectedFiles.length;
+  // Pushes the files id and name into the 'files' array
+  for (let i = 0; i < filesSelectedLength; ++i) {
+    files.push({
+      id: returnObjectID(req.body.selectedFiles[i].id),
+      filename: req.body.selectedFiles[i].filename,
+    });
+  }
+  const options = {
+    metadata: {
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.body.folder),
+      isFavorited: false,
+    },
+  };
+  const gfs = Connection.gfs;
+  /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
+  files.map((file) => {
+    // Downloads the file from the GridFSBucket
+    const downloadStream = gfs.openDownloadStream(returnObjectID(file.id));
+
+    // Uploads the file to GridFSBucket
+    const writeStream = gfs.openUploadStream(
+      `Copy of ${file.filename}`,
+      options
+    );
+    let id = writeStream.id;
+    // Bytes get downloaded and written into the writestream
+    downloadStream.pipe(writeStream).once("finish", async () => {
+      const files = await findFiles({ _id: id });
+      const newFiles = [{ id }];
+      return res.json({
+        files,
+        newFiles,
+        success: {
+          message: "Files were sucessfully copied",
+        },
+      });
+    });
+  });
+};
+
+exports.undoCopy = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be deleted permanently
+  const files = generateFileArray(req);
+  const deletedFilesPromise = files.map(async (file) => {
+    await Connection.gfs.delete(file);
+  });
+  return Promise.all(deletedFilesPromise)
+    .then(async () => {
+      const files = await this.getFiles(req, res, next);
+      res.json({ files });
+    })
+    .catch((err) => {
+      // If there is an error with Mongo, throw an error
+      if (err.name === "MongoError")
+        return res.status(404).json({
+          error: {
+            message:
+              "There was an error deleting the selected file(s)/folder(s). Please try again.",
+          },
+        });
+      else next(err);
+    });
+};
+
+exports.favoriteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be favorited
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getFiles(req, res, next);
+
+  const favoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { "metadata.isFavorited": true } }
+  );
+  if (favoritedFiles.result.nModified > 0)
+    return await this.getFiles(req, res, next);
+};
+
+exports.unfavoriteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be unfavorited
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getFavoriteFiles(req, res, next);
+
+  const unfavoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { "metadata.isFavorited": false } }
+  );
+  if (unfavoritedFiles.result.nModified > 0)
+    return await this.getFavoriteFiles(req, res, next);
+};
+
+exports.undoFavoriteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be unfavorited
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getFiles(req, res, next);
+
+  const unfavoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { "metadata.isFavorited": false } }
+  );
+  if (unfavoritedFiles.result.nModified > 0) {
+    return await this.getFiles(req, res, next);
+  }
+};
+
+exports.moveFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be moved to a new location
+  const files = generateFileArray(req);
+  const folders = generateFolderArray(req);
+  let movedFiles = [];
+  let updatedFiles = [];
+  if (files.length > 0) {
+    movedFiles = await updateFiles(
+      {
+        _id: { $in: files },
+      },
+      {
+        $set: {
+          "metadata.folder_id": returnObjectID(req.body.movedFolder),
+        },
+      }
+    );
+    updatedFiles = await this.getFiles(req, res, next);
+  } else updatedFiles = await this.getFiles(req, res, next);
+  let movedFolders = [];
+  let updatedFolders = [];
+  if (folders.length > 0) {
+    movedFolders = await updateFolders(
+      {
+        _id: { $in: folders },
+      },
+      {
+        $set: {
+          parent_id: returnObjectID(req.body.movedFolder),
+        },
+      }
+    );
+    updatedFolders = await getFolders(req, res, next);
+  } else updatedFolders = await getFolders(req, res, next);
+  return res.json({
+    success: {
+      message: "Files/Folders were successfully moved",
+    },
+    files: updatedFiles,
+    folders: updatedFolders,
+  });
+};
+exports.homeUnfavoriteFiles = async (req, res, next) => {
+  // Files represent an array of files that have been selected to be unfavorited
+  const files = generateFileArray(req);
+  if (files.length === 0) return await this.getFiles(req, res, next);
+
+  const unfavoritedFiles = await updateFiles(
+    { _id: { $in: files } },
+    { $set: { "metadata.isFavorited": false } }
+  );
+  if (unfavoritedFiles.result.nModified > 0)
+    return await this.getFiles(req, res, next);
 };
