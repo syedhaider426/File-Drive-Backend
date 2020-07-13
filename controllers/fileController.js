@@ -38,23 +38,26 @@ exports.uploadFile = (req, res, next) => {
     const writestream = Connection.gfs.openUploadStream(file.name, options);
     fs.createReadStream(file.path)
       .pipe(writestream)
-      .once("finish", () => {
+      .on("finish", async () => {
         console.log("Finished");
+        console.log(req.params.folder);
+        const files = await findFiles({
+          "metadata.user_id": req.user._id,
+          "metadata.folder_id": returnObjectID(req.params.folder),
+          "metadata.isTrashed": false,
+        });
+        return res.json({
+          success: {
+            message: "Files were sucessfully uploaded",
+          },
+          files,
+        });
       });
   });
 
   // If an error occurs, return an error response back to the client
   form.on("error", (err) => {
     if (err) next(err);
-  });
-
-  // Once it is finishing parsing the file, upload the file to GridFSBucket
-  form.once("end", () => {
-    return res.json({
-      success: {
-        message: "Files were sucessfully uploaded",
-      },
-    });
   });
 };
 
@@ -110,7 +113,6 @@ exports.deleteFiles = async (req, res, next) => {
 
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
-  console.log(req.body.isFavorited);
   if (files.length === 0)
     return await findFiles({
       "metadata.user_id": req.user._id,

@@ -12,6 +12,7 @@ const {
   undoTrashFolders,
   undoFavoriteFolders,
   homeUnfavoriteFolders,
+  getFolderHierarchy,
 } = require("./folderController");
 
 const {
@@ -33,9 +34,13 @@ exports.getFilesAndFolders = async (req, res, next) => {
   //Return the files for the specific user
   const files = await getFiles(req, res, next);
   const folders = await getFolders(req, res, next);
+  let folderPath = [];
+  if (req.params.folder !== undefined)
+    folderPath = await getFolderHierarchy(req, res, next);
   return res.json({
     files,
     folders,
+    folderPath,
     success: {
       message: "Files/folders were succesfully retrieved",
     },
@@ -46,6 +51,7 @@ exports.getFavoriteFilesAndFolders = async (req, res, next) => {
   // Finds the files that the user favorited
   const files = await getFavoriteFiles(req, res, next);
   const folders = await getFavoriteFolders(req, res, next);
+
   return res.json({
     files,
     folders,

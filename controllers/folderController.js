@@ -23,6 +23,34 @@ generateFolderArray = (req) => {
   return folders;
 };
 
+exports.getFolderHierarchy = async (req, res, next) => {
+  const result = await Connection.db
+    .collection("folders")
+    .aggregate([
+      { $match: { _id: returnObjectID(req.params.folder) } }, // Only look at folder
+      {
+        $graphLookup: {
+          from: "folders", // Use the folders collection
+          startWith: "$parent_id", // Start looking at the document's `parent_id` property
+          connectFromField: "parent_id", // A link in the graph is represented by the parent id property...
+          connectToField: "_id", // ... pointing to another folder's _id property
+          as: "connections", // Store this in the `connections` property
+        },
+      },
+    ])
+    .toArray();
+  const folders = [];
+  const f = result[0];
+  for (let i = 0; i < f.connections.length; ++i) {
+    folders.push({
+      _id: f.connections[i]._id,
+      foldername: f.connections[i].foldername,
+    });
+  }
+  folders.push({ _id: f._id, foldername: f.foldername });
+  return folders;
+};
+
 exports.getFolders = async (req, res, next) => {
   return await findFolders({
     user_id: req.user._id,
@@ -70,7 +98,7 @@ exports.createFolder = async (req, res, next) => {
   const folder = {
     foldername: req.body.folder,
     user_id: req.user._id,
-    parent_id: "",
+    parent_id: returnObjectID(req.params.folder),
     description: "",
     createdOn: new Date(),
     isTrashed: false,
@@ -80,12 +108,15 @@ exports.createFolder = async (req, res, next) => {
   const createdFolder = await createFolder(folder);
 
   // If folder was created succesfully, return a success response back to client
-  if (createdFolder.insertedId)
+  if (createdFolder.insertedId) {
+    const folders = await this.getFolders(req, res, next);
     return res.status(201).json({
       success: {
         message: "Folder successfully created",
       },
+      folders,
     });
+  }
 };
 
 exports.renameFolder = async (req, res, next) => {
