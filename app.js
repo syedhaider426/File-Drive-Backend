@@ -12,10 +12,8 @@ const app = express();
 const port = keys.port;
 
 // express.json() middleware is used to pass form data into the req.body
-app.use(express.json());
-
 // express.urlencoded() middleware is used to pass objects from client to the server
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()).use(express.urlencoded({ extended: true }));
 
 //These two modules set up the middleware and then connect to the Mongo database.
 require("./startup/server")(app);

@@ -29,30 +29,71 @@ exports.uploadFile = (req, res, next) => {
   };
   //Pass in an array of files
   const form = new formidable.IncomingForm(req, res, next);
+  form.multiples = true;
 
   //This is necessary to trigger the events
-  form.parse(req);
-
-  // File has been received
-  form.on("file", (field, file) => {
-    const writestream = Connection.gfs.openUploadStream(file.name, options);
-    fs.createReadStream(file.path)
-      .pipe(writestream)
-      .on("finish", async () => {
-        console.log("Finished");
-        console.log(req.params.folder);
-        const files = await findFiles({
+  form.parse(req, async (err, fields, fileList) => {
+    if (fileList.files.length === undefined) {
+      const writestream = Connection.gfs.openUploadStream(
+        fileList.files.name,
+        options
+      );
+      fs.createReadStream(fileList.files.path)
+        .pipe(writestream)
+        .on("finish", async () => {
+          const uploadedFiles = await findFiles({
+            "metadata.user_id": req.user._id,
+            "metadata.folder_id": returnObjectID(req.params.folder),
+            "metadata.isTrashed": false,
+          });
+          return res.json({
+            success: {
+              message: "File uploaded succesfully",
+            },
+            files: uploadedFiles,
+          });
+        });
+    } else {
+      let promises = [];
+      for (let i = 0; i < fileList.files.length; ++i) {
+        let promise = new Promise((resolve, reject) => {
+          const writestream = Connection.gfs.openUploadStream(
+            fileList.files[i].name,
+            options
+          );
+          fs.createReadStream(fileList.files[i].path)
+            .pipe(writestream)
+            .on("error", (err) => {
+              reject(err);
+            })
+            .on("finish", () => {
+              resolve("Uploaded");
+            });
+        });
+        promises.push(promise);
+      }
+      const result = await Promise.all(promises);
+      if (result.length === fileList.files.length) {
+        const uploadedFiles = await findFiles({
           "metadata.user_id": req.user._id,
           "metadata.folder_id": returnObjectID(req.params.folder),
           "metadata.isTrashed": false,
         });
         return res.json({
           success: {
-            message: "Files were sucessfully uploaded",
+            message: "Files were uploaded succesfully",
           },
-          files,
+          files: uploadedFiles,
         });
-      });
+      } else {
+        return res.status(400).json({
+          error: {
+            message:
+              "Files could not be uploaded at this time. Please try again later",
+          },
+        });
+      }
+    }
   });
 
   // If an error occurs, return an error response back to the client
