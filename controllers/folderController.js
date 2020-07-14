@@ -187,12 +187,14 @@ exports.deleteFolders = async (req, res, next) => {
 
 exports.trashFolders = async (req, res, next) => {
   const folders = generateFolderArray(req);
-  if (folders.length === 0 && req.body.trashMenu) {
-    return await this.getTrashFolders(req, res, next);
-  } else if (folders.length === 0 && req.body.isFavorited.length === 2)
-    return await this.getFolders(req, res, next);
-  else if (folders.length === 0 && req.body.isFavorited.length === 1)
-    return await this.getFavoriteFolders(req, res, next);
+  if (folders.length === 0) {
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: req.body.trashMenu === undefined ? false : true,
+      isFavorited: { $in: req.body.isFavorited },
+    });
+  }
   let trashedFolders = await updateFolders(
     {
       _id: { $in: folders },
@@ -201,15 +203,14 @@ exports.trashFolders = async (req, res, next) => {
       $set: { isTrashed: true, trashedAt: new Date(), isFavorited: false },
     }
   );
-  if (req.body.trashMenu) {
-    return await this.getTrashFolders(req, res, next);
-  } else if (
-    trashedFolders.result.nModified > 0 &&
-    req.body.isFavorited.length === 2
-  )
-    return await this.getFolders(req, res, next);
-  else {
-    return await this.getFavoriteFolders(req, res, next);
+
+  if (trashedFolders.result.nModified > 0) {
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: req.body.trashMenu === undefined ? false : true,
+      isFavorited: { $in: req.body.isFavorited },
+    });
   }
 };
 
@@ -278,7 +279,13 @@ exports.undoTrashFolders = async (req, res, next) => {
 exports.favoriteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be favorited
   const folders = generateFolderArray(req);
-  if (folders.length === 0) return await this.getFolders(req, res, next);
+  if (folders.length === 0)
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: false,
+      isFavorited: req.body.favoritesMenu === undefined ? false : true,
+    });
   // Favorites the selected folders
   const favoritedFolders = await updateFolders(
     { _id: { $in: folders } },
@@ -286,7 +293,12 @@ exports.favoriteFolders = async (req, res, next) => {
   );
   // If folders were succesfully favorited, return a success response back to the client
   if (favoritedFolders.result.nModified > 0)
-    return await this.getFolders(req, res, next);
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: false,
+      isFavorited: req.body.favoritesMenu === undefined ? false : true,
+    });
 };
 
 exports.unfavoriteFolders = async (req, res, next) => {

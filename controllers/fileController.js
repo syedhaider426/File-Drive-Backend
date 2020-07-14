@@ -176,7 +176,6 @@ exports.trashFiles = async (req, res, next) => {
       },
     }
   );
-  console.log(req.body.trashMenu);
   if (trashedFiles.result.nModified > 0)
     //Return the files for the specific user
     return await findFiles({
@@ -344,19 +343,33 @@ exports.undoCopy = async (req, res, next) => {
 exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFileArray(req);
-  if (files.length === 0) return await this.getFiles(req, res, next);
+  if (files.length === 0)
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+      "metadata.isFavorited":
+        req.body.favoritesMenu === undefined ? false : true,
+    });
 
   const favoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { "metadata.isFavorited": true } }
   );
   if (favoritedFiles.result.nModified > 0)
-    return await this.getFiles(req, res, next);
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+      "metadata.isFavorited":
+        req.body.favoritesMenu === undefined ? false : true,
+    });
 };
 
 exports.unfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);
+  console.log("unfavorite", files);
   if (files.length === 0) return await this.getFavoriteFiles(req, res, next);
 
   const unfavoritedFiles = await updateFiles(

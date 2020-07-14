@@ -121,6 +121,7 @@ exports.favoriteFilesAndFolders = async (req, res, next) => {
 exports.unfavoriteFilesAndFolders = async (req, res, next) => {
   const files = await unfavoriteFiles(req, res, next);
   const folders = await unfavoriteFolders(req, res, next);
+  console.log("Files", files.length);
   return res.json({
     files,
     folders,
