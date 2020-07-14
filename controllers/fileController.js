@@ -158,7 +158,7 @@ exports.trashFiles = async (req, res, next) => {
     return await findFiles({
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
+      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
   /*
@@ -176,12 +176,13 @@ exports.trashFiles = async (req, res, next) => {
       },
     }
   );
+  console.log(req.body.trashMenu);
   if (trashedFiles.result.nModified > 0)
     //Return the files for the specific user
     return await findFiles({
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
+      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
 };
