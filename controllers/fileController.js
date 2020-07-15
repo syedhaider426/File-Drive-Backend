@@ -38,10 +38,17 @@ exports.uploadFile = (req, res, next) => {
         fileList.files.name,
         options
       );
+      const id = writestream.id;
       fs.createReadStream(fileList.files.path)
         .pipe(writestream)
         .on("finish", async () => {
           const uploadedFiles = await findFiles({
+            _id: id,
+            "metadata.user_id": req.user._id,
+            "metadata.folder_id": returnObjectID(req.params.folder),
+            "metadata.isTrashed": false,
+          });
+          const allFiles = await findFiles({
             "metadata.user_id": req.user._id,
             "metadata.folder_id": returnObjectID(req.params.folder),
             "metadata.isTrashed": false,
@@ -50,7 +57,8 @@ exports.uploadFile = (req, res, next) => {
             success: {
               message: "File uploaded succesfully",
             },
-            files: uploadedFiles,
+            files: allFiles,
+            uploadedFiles,
           });
         });
     } else {
@@ -61,13 +69,14 @@ exports.uploadFile = (req, res, next) => {
             fileList.files[i].name,
             options
           );
+          const id = writestream.id;
           fs.createReadStream(fileList.files[i].path)
             .pipe(writestream)
             .on("error", (err) => {
               reject(err);
             })
             .on("finish", () => {
-              resolve("Uploaded");
+              resolve(id);
             });
         });
         promises.push(promise);
@@ -75,6 +84,12 @@ exports.uploadFile = (req, res, next) => {
       const result = await Promise.all(promises);
       if (result.length === fileList.files.length) {
         const uploadedFiles = await findFiles({
+          _id: { $in: result },
+          "metadata.user_id": req.user._id,
+          "metadata.folder_id": returnObjectID(req.params.folder),
+          "metadata.isTrashed": false,
+        });
+        const allFiles = await findFiles({
           "metadata.user_id": req.user._id,
           "metadata.folder_id": returnObjectID(req.params.folder),
           "metadata.isTrashed": false,
@@ -83,7 +98,8 @@ exports.uploadFile = (req, res, next) => {
           success: {
             message: "Files were uploaded succesfully",
           },
-          files: uploadedFiles,
+          files: allFiles,
+          uploadedFiles,
         });
       } else {
         return res.status(400).json({
@@ -249,7 +265,7 @@ exports.renameFile = async (req, res, next) => {
     // Finds file and renames it
     const renamedFile = await Connection.gfs.rename(
       returnObjectID(req.body.id),
-      req.body.newName
+      req.body.newName.trim()
     );
     if (renamedFile === undefined) {
       return res.json({

@@ -96,7 +96,7 @@ exports.createFolder = async (req, res, next) => {
     });
 
   const folder = {
-    foldername: req.body.folder,
+    foldername: req.body.folder.trim(),
     user_id: req.user._id,
     parent_id: returnObjectID(req.params.folder),
     description: "",
@@ -106,7 +106,6 @@ exports.createFolder = async (req, res, next) => {
 
   // Creates folder
   const createdFolder = await createFolder(folder);
-
   // If folder was created succesfully, return a success response back to client
   if (createdFolder.insertedId) {
     const folders = await this.getFolders(req, res, next);
@@ -115,6 +114,7 @@ exports.createFolder = async (req, res, next) => {
         message: "Folder successfully created",
       },
       folders,
+      newFolder: createdFolder.ops,
     });
   }
 };
@@ -139,14 +139,13 @@ exports.renameFolder = async (req, res, next) => {
         message: validation.error,
       },
     });
-
   // Updates the folder with the new folder name
   const renamedFolderResult = await updateFolders(
     {
       _id: returnObjectID(req.body.id),
     },
     {
-      $set: { foldername: req.body.newName },
+      $set: { foldername: req.body.newName.trim() },
     }
   );
 
