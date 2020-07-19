@@ -365,7 +365,7 @@ exports.favoriteFiles = async (req, res, next) => {
       "metadata.folder_id": returnObjectID(req.params.folder),
       "metadata.isTrashed": false,
       "metadata.isFavorited":
-        req.body.favoritesMenu === undefined ? false : true,
+        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
     });
 
   const favoritedFiles = await updateFiles(
@@ -378,14 +378,13 @@ exports.favoriteFiles = async (req, res, next) => {
       "metadata.folder_id": returnObjectID(req.params.folder),
       "metadata.isTrashed": false,
       "metadata.isFavorited":
-        req.body.favoritesMenu === undefined ? false : true,
+        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
     });
 };
 
 exports.unfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);
-  console.log("unfavorite", files);
   if (files.length === 0) return await this.getFavoriteFiles(req, res, next);
 
   const unfavoritedFiles = await updateFiles(
@@ -413,45 +412,21 @@ exports.undoFavoriteFiles = async (req, res, next) => {
 exports.moveFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be moved to a new location
   const files = generateFileArray(req);
-  const folders = generateFolderArray(req);
-  let movedFiles = [];
-  let updatedFiles = [];
   if (files.length > 0) {
-    movedFiles = await updateFiles(
+    await updateFiles(
       {
         _id: { $in: files },
       },
       {
         $set: {
-          "metadata.folder_id": returnObjectID(req.body.movedFolder),
+          "metadata.folder_id": returnObjectID(req.body.moveFolder),
         },
       }
     );
-    updatedFiles = await this.getFiles(req, res, next);
-  } else updatedFiles = await this.getFiles(req, res, next);
-  let movedFolders = [];
-  let updatedFolders = [];
-  if (folders.length > 0) {
-    movedFolders = await updateFolders(
-      {
-        _id: { $in: folders },
-      },
-      {
-        $set: {
-          parent_id: returnObjectID(req.body.movedFolder),
-        },
-      }
-    );
-    updatedFolders = await getFolders(req, res, next);
-  } else updatedFolders = await getFolders(req, res, next);
-  return res.json({
-    success: {
-      message: "Files/Folders were successfully moved",
-    },
-    files: updatedFiles,
-    folders: updatedFolders,
-  });
+    return await this.getFiles(req, res, next);
+  } else return await this.getFiles(req, res, next);
 };
+
 exports.homeUnfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);

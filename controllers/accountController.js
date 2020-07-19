@@ -22,7 +22,7 @@ exports.getUserById = async (id) => {
 exports.resetPassword = async (req, res, next) => {
   // Create JOI Schema
   const schema = Joi.object({
-    password: Joi.string().required().messages({
+    currentPassword: Joi.string().required().messages({
       "string.empty": `Password cannot be empty.`,
     }),
     newPassword: Joi.string().required().messages({
@@ -36,7 +36,7 @@ exports.resetPassword = async (req, res, next) => {
   // Validate user inputs
   const validation = await schema.validate(
     {
-      password: req.body.currentPassword,
+      currentPassword: req.body.currentPassword,
       newPassword: req.body.newPassword,
       confirmPassword: req.body.confirmPassword,
     },
@@ -89,65 +89,6 @@ exports.resetPassword = async (req, res, next) => {
         error: {
           message:
             "There was an error resetting your password. Please try again.",
-        },
-      });
-    else next(err);
-  }
-};
-
-exports.resetEmail = async (req, res, next) => {
-  //Create JOI schema
-  const schema = Joi.object({
-    email: Joi.string().email().required().messages({
-      "string.empty": `Email cannot be empty.`,
-      "string.email": `Please provide a proper email address.`,
-    }),
-  });
-
-  // Validate user inputs
-  const validation = await schema.validate({ email: req.body.newEmail });
-
-  // Return error if any inputs do not satisfy the schema
-  if (validation.error)
-    return res.status(400).json({
-      error: {
-        message: validation.error,
-      },
-    });
-
-  try {
-    // Checks if the email belongs to any other user
-    const foundEmail = await Connection.db
-      .collection("users")
-      .findOne({ _id: req.body.newEmail }, { _id: 1 });
-
-    // If the email is already registered, throw an error
-    if (foundEmail)
-      return res.status(409).json({
-        error: {
-          message: "Email has already been registered with another user",
-        },
-      });
-
-    // Updates the current user's email with the new email they entered
-    const updatedEmailResult = await users.updateOne(
-      { _id: req.user._id },
-      { $set: { email: req.body.newEmail } }
-    );
-
-    // If the email was updated, return a success response to the client
-    if (updatedEmailResult.result.nModified === 1)
-      return res.json({
-        success: {
-          message: "Email has been successfully changed. Please log out.",
-        },
-      });
-  } catch (err) {
-    // If there is an error with Mongo, throw an error
-    if (err.name === "MongoError")
-      return res.status(404).json({
-        error: {
-          message: "There was an issue changing your email. Please try again.",
         },
       });
     else next(err);

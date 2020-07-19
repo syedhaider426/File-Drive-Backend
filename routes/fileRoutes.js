@@ -21,6 +21,7 @@ const {
   homeUnfavoriteFilesAndFolders,
   deleteAll,
   restoreAll,
+  moveFilesAndFolders,
 } = require("../controllers/fileFolderController");
 
 /**
@@ -35,7 +36,7 @@ module.exports = (app) => {
   app.post("/api/files/upload/:folder", checkAuthenticated, uploadFile);
 
   // @route POST - Moves a file or files to designated folder if the user is authenticated.
-  app.post("/api/files/move", checkAuthenticated, moveFiles);
+  app.post("/api/files/move", checkAuthenticated, moveFilesAndFolders);
 
   // @route DELETE - Deletes a file or files if the user is authenticated.
   app.post("/api/files/delete", checkAuthenticated, deleteFilesAndFolders);
