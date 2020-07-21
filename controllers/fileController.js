@@ -65,15 +65,15 @@ exports.uploadFile = (req, res, next) => {
       let promises = [];
       for (let i = 0; i < fileList.files.length; ++i) {
         let promise = new Promise((resolve, reject) => {
-          const writestream = Connection.gfs.openUploadStream(
+          const writeStream = Connection.gfs.openUploadStream(
             fileList.files[i].name,
             options
           );
-          const id = writestream.id;
+          const id = writeStream.id;
           fs.createReadStream(fileList.files[i].path)
-            .pipe(writestream)
+            .pipe(writeStream)
             .on("error", (err) => {
-              reject(err);
+              throw reject(err);
             })
             .on("finish", () => {
               resolve(id);
@@ -81,10 +81,13 @@ exports.uploadFile = (req, res, next) => {
         });
         promises.push(promise);
       }
-      const result = await Promise.all(promises);
-      if (result.length === fileList.files.length) {
+      const resultArray = [];
+      for (const promiseFile of promises) {
+        resultArray.push(await promiseFile);
+      }
+      if (resultArray.length === fileList.files.length) {
         const uploadedFiles = await findFiles({
-          _id: { $in: result },
+          _id: { $in: resultArray },
           "metadata.user_id": req.user._id,
           "metadata.folder_id": returnObjectID(req.params.folder),
           "metadata.isTrashed": false,
@@ -116,6 +119,76 @@ exports.uploadFile = (req, res, next) => {
   form.on("error", (err) => {
     if (err) next(err);
   });
+};
+
+exports.copyFiles = async (req, res, next) => {
+  const files = [];
+  const filesSelectedLength = req.body.selectedFiles.length;
+  // Pushes the files id and name into the 'files' array
+  for (let i = 0; i < filesSelectedLength; ++i) {
+    files.push({
+      id: returnObjectID(req.body.selectedFiles[i].id),
+      filename: req.body.selectedFiles[i].filename,
+    });
+  }
+  const options = {
+    metadata: {
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.body.folder),
+      isFavorited: false,
+    },
+  };
+  const gfs = Connection.gfs;
+  const promises = [];
+  /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
+  for (let i = 0; i < files.length; ++i) {
+    let promise = new Promise((resolve, reject) => {
+      // Downloads the file from the GridFSBucket
+      const downloadStream = gfs.openDownloadStream(
+        returnObjectID(files[i].id)
+      );
+      // Uploads the file to GridFSBucket
+      const writeStream = gfs.openUploadStream(
+        `Copy of ${files[i].filename}`,
+        options
+      );
+      const id = writeStream.id;
+      console.log("File", files[i]);
+      downloadStream
+        .pipe(writeStream)
+        .on("error", (err) => {
+          throw reject(err);
+        })
+        .on("finish", () => {
+          console.log("Copied first file");
+          resolve(id);
+        });
+    });
+    promises.push(promise);
+  }
+  const resultArray = [];
+  for (const promiseFile of promises) {
+    resultArray.push(await promiseFile);
+  }
+  if (resultArray.length === files.length) {
+    const files = await findFiles({ _id: { $in: resultArray } });
+    const newFiles = [{ id: resultArray }];
+    return res.json({
+      files,
+      newFiles,
+      success: {
+        message: "Files were sucessfully copied",
+      },
+    });
+  } else {
+    return res.status(400).json({
+      error: {
+        message:
+          "Files could not be copied at this time. Please try again later",
+      },
+    });
+  }
 };
 
 exports.getFiles = async (req, res, next) => {
@@ -285,51 +358,6 @@ exports.renameFile = async (req, res, next) => {
       });
     else next(err);
   }
-};
-
-exports.copyFiles = (req, res, next) => {
-  const files = [];
-  const filesSelectedLength = req.body.selectedFiles.length;
-  // Pushes the files id and name into the 'files' array
-  for (let i = 0; i < filesSelectedLength; ++i) {
-    files.push({
-      id: returnObjectID(req.body.selectedFiles[i].id),
-      filename: req.body.selectedFiles[i].filename,
-    });
-  }
-  const options = {
-    metadata: {
-      user_id: req.user._id,
-      isTrashed: false,
-      folder_id: returnObjectID(req.body.folder),
-      isFavorited: false,
-    },
-  };
-  const gfs = Connection.gfs;
-  /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
-  files.map((file) => {
-    // Downloads the file from the GridFSBucket
-    const downloadStream = gfs.openDownloadStream(returnObjectID(file.id));
-
-    // Uploads the file to GridFSBucket
-    const writeStream = gfs.openUploadStream(
-      `Copy of ${file.filename}`,
-      options
-    );
-    let id = writeStream.id;
-    // Bytes get downloaded and written into the writestream
-    downloadStream.pipe(writeStream).once("finish", async () => {
-      const files = await findFiles({ _id: id });
-      const newFiles = [{ id }];
-      return res.json({
-        files,
-        newFiles,
-        success: {
-          message: "Files were sucessfully copied",
-        },
-      });
-    });
-  });
 };
 
 exports.undoCopy = async (req, res, next) => {
