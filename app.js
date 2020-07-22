@@ -9,6 +9,7 @@ const fs = require("fs");
 
 // Creates an instance of express
 const app = express();
+
 const port = keys.port;
 
 // express.json() middleware is used to pass form data into the req.body
@@ -23,12 +24,6 @@ require("./startup/db")();
 const routesPath = require("path").join(__dirname, "routes");
 fs.readdirSync(routesPath).forEach((file) => {
   require("./routes/" + file)(app);
-});
-
-// Module loader for the pages that are referenced when navigating through the website
-const pagesPath = require("path").join(__dirname, "pages");
-fs.readdirSync(pagesPath).forEach((file) => {
-  require("./pages/" + file)(app);
 });
 
 app.use((req, res, next) => {

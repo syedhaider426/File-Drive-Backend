@@ -72,6 +72,7 @@ exports.uploadFile = (req, res, next) => {
           const id = writeStream.id;
           fs.createReadStream(fileList.files[i].path)
             .pipe(writeStream)
+
             .on("error", (err) => {
               throw reject(err);
             })
@@ -135,7 +136,7 @@ exports.copyFiles = async (req, res, next) => {
     metadata: {
       user_id: req.user._id,
       isTrashed: false,
-      folder_id: returnObjectID(req.body.folder),
+      folder_id: returnObjectID(req.params.folder),
       isFavorited: false,
     },
   };
@@ -154,14 +155,12 @@ exports.copyFiles = async (req, res, next) => {
         options
       );
       const id = writeStream.id;
-      console.log("File", files[i]);
       downloadStream
         .pipe(writeStream)
         .on("error", (err) => {
           throw reject(err);
         })
         .on("finish", () => {
-          console.log("Copied first file");
           resolve(id);
         });
     });
@@ -173,7 +172,7 @@ exports.copyFiles = async (req, res, next) => {
   }
   if (resultArray.length === files.length) {
     const files = await findFiles({ _id: { $in: resultArray } });
-    const newFiles = [{ id: resultArray }];
+    const newFiles = { id: resultArray };
     return res.json({
       files,
       newFiles,
@@ -362,9 +361,9 @@ exports.renameFile = async (req, res, next) => {
 
 exports.undoCopy = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
-  const files = generateFileArray(req);
+  const files = req.body.selectedFiles;
   const deletedFilesPromise = files.map(async (file) => {
-    await Connection.gfs.delete(file);
+    await Connection.gfs.delete(returnObjectID(file));
   });
   return Promise.all(deletedFilesPromise)
     .then(async () => {
