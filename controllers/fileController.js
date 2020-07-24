@@ -3,8 +3,7 @@ const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 const Joi = require("@hapi/joi");
-const { findFiles, updateFiles, updateFolders } = require("../database/crud");
-const { getFolders } = require("./folderController");
+const { findFiles, updateFiles } = require("../database/crud");
 
 generateFileArray = (req) => {
   const files = [];
@@ -18,7 +17,14 @@ generateFileArray = (req) => {
   return files;
 };
 
-exports.uploadFile = (req, res, next) => {
+exports.viewFile = async (req, res, next) => {
+  // id of file
+  const file = await findFiles({ _id: returnObjectID(req.params.file) });
+  res.setHeader("Content-Type", file[0].contentType);
+  Connection.gfs.openDownloadStream(returnObjectID(file[0]._id)).pipe(res);
+};
+
+exports.uploadFile = async (req, res, next) => {
   const options = {
     metadata: {
       user_id: req.user._id,
@@ -27,13 +33,16 @@ exports.uploadFile = (req, res, next) => {
       isFavorited: false,
     },
   };
+
   //Pass in an array of files
   const form = new formidable.IncomingForm(req, res, next);
   form.multiples = true;
+  form.maxFileSize = 3000 * 1024 * 1024; //3gb
 
   //This is necessary to trigger the events
   form.parse(req, async (err, fields, fileList) => {
     if (fileList.files.length === undefined) {
+      options.contentType = fileList.files.type;
       const writestream = Connection.gfs.openUploadStream(
         fileList.files.name,
         options
@@ -48,11 +57,7 @@ exports.uploadFile = (req, res, next) => {
             "metadata.folder_id": returnObjectID(req.params.folder),
             "metadata.isTrashed": false,
           });
-          const allFiles = await findFiles({
-            "metadata.user_id": req.user._id,
-            "metadata.folder_id": returnObjectID(req.params.folder),
-            "metadata.isTrashed": false,
-          });
+          const allFiles = await this.getFiles(req);
           return res.json({
             success: {
               message: "File uploaded succesfully",
@@ -72,9 +77,8 @@ exports.uploadFile = (req, res, next) => {
           const id = writeStream.id;
           fs.createReadStream(fileList.files[i].path)
             .pipe(writeStream)
-
             .on("error", (err) => {
-              throw reject(err);
+              reject(err);
             })
             .on("finish", () => {
               resolve(id);
@@ -93,11 +97,7 @@ exports.uploadFile = (req, res, next) => {
           "metadata.folder_id": returnObjectID(req.params.folder),
           "metadata.isTrashed": false,
         });
-        const allFiles = await findFiles({
-          "metadata.user_id": req.user._id,
-          "metadata.folder_id": returnObjectID(req.params.folder),
-          "metadata.isTrashed": false,
-        });
+        const allFiles = await this.getFiles(req);
         return res.json({
           success: {
             message: "Files were uploaded succesfully",
@@ -158,7 +158,7 @@ exports.copyFiles = async (req, res, next) => {
       downloadStream
         .pipe(writeStream)
         .on("error", (err) => {
-          throw reject(err);
+          reject(err);
         })
         .on("finish", () => {
           resolve(id);
@@ -228,7 +228,7 @@ exports.deleteFiles = async (req, res, next) => {
       return await this.getTrashFiles(req, res, next);
     })
     .catch((err) => {
-      // If there is an error with Mongo, throw an error
+      // If there is an error with Mongo, an error
       if (err.name === "MongoError")
         return res.status(404).json({
           error: {
@@ -347,7 +347,7 @@ exports.renameFile = async (req, res, next) => {
       });
     }
   } catch (err) {
-    // If there is an error with Mongo, throw an error
+    // If there is an error with Mongo, an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {

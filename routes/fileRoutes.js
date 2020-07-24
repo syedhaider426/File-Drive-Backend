@@ -1,10 +1,10 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
 const {
   uploadFile,
-  moveFiles,
   renameFile,
   copyFiles,
   undoCopy,
+  viewFile,
 } = require("../controllers/fileController");
 
 const {
@@ -128,4 +128,6 @@ module.exports = (app) => {
 
   // @route post - Restore all files and folders for user
   app.post("/api/files/restoreAll", checkAuthenticated, restoreAll);
+
+  app.get("/api/files/:file", checkAuthenticated, viewFile);
 };
