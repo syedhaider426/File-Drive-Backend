@@ -17,6 +17,9 @@ module.exports = (app) => {
   // @route POST - Creates a folder if the user is authenticated.
   app.post("/api/folders/create", checkAuthenticated, createFolder);
 
+  // @route POST - Creates a folder if the user is authenticated.
+  app.post("/api/folders/create/:folder", checkAuthenticated, createFolder);
+
   // @route POST - Renames a folder if the user is authenticated.
   app.post("/api/folders/rename", checkAuthenticated, renameFolder);
 

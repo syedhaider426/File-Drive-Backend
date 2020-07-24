@@ -3,8 +3,7 @@ const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 const Joi = require("@hapi/joi");
-const { findFiles, updateFiles, updateFolders } = require("../database/crud");
-const { getFolders } = require("./folderController");
+const { findFiles, updateFiles } = require("../database/crud");
 
 generateFileArray = (req) => {
   const files = [];
@@ -18,7 +17,14 @@ generateFileArray = (req) => {
   return files;
 };
 
-exports.uploadFile = (req, res, next) => {
+exports.viewFile = async (req, res, next) => {
+  // id of file
+  const file = await findFiles({ _id: returnObjectID(req.params.file) });
+  res.setHeader("Content-Type", file[0].contentType);
+  Connection.gfs.openDownloadStream(returnObjectID(file[0]._id)).pipe(res);
+};
+
+exports.uploadFile = async (req, res, next) => {
   const options = {
     metadata: {
       user_id: req.user._id,
@@ -27,35 +33,161 @@ exports.uploadFile = (req, res, next) => {
       isFavorited: false,
     },
   };
+
   //Pass in an array of files
   const form = new formidable.IncomingForm(req, res, next);
+  form.multiples = true;
+  form.maxFileSize = 3000 * 1024 * 1024; //3gb
 
   //This is necessary to trigger the events
-  form.parse(req);
-
-  // File has been received
-  form.on("file", (field, file) => {
-    const writestream = Connection.gfs.openUploadStream(file.name, options);
-    fs.createReadStream(file.path)
-      .pipe(writestream)
-      .once("finish", () => {
-        console.log("Finished");
-      });
+  form.parse(req, async (err, fields, fileList) => {
+    if (fileList.files.length === undefined) {
+      options.contentType = fileList.files.type;
+      const writestream = Connection.gfs.openUploadStream(
+        fileList.files.name,
+        options
+      );
+      const id = writestream.id;
+      fs.createReadStream(fileList.files.path)
+        .pipe(writestream)
+        .on("finish", async () => {
+          const uploadedFiles = await findFiles({
+            _id: id,
+            "metadata.user_id": req.user._id,
+            "metadata.folder_id": returnObjectID(req.params.folder),
+            "metadata.isTrashed": false,
+          });
+          const allFiles = await this.getFiles(req);
+          return res.json({
+            success: {
+              message: "File uploaded succesfully",
+            },
+            files: allFiles,
+            uploadedFiles,
+          });
+        });
+    } else {
+      let promises = [];
+      for (let i = 0; i < fileList.files.length; ++i) {
+        let promise = new Promise((resolve, reject) => {
+          const writeStream = Connection.gfs.openUploadStream(
+            fileList.files[i].name,
+            options
+          );
+          const id = writeStream.id;
+          fs.createReadStream(fileList.files[i].path)
+            .pipe(writeStream)
+            .on("error", (err) => {
+              reject(err);
+            })
+            .on("finish", () => {
+              resolve(id);
+            });
+        });
+        promises.push(promise);
+      }
+      const resultArray = [];
+      for (const promiseFile of promises) {
+        resultArray.push(await promiseFile);
+      }
+      if (resultArray.length === fileList.files.length) {
+        const uploadedFiles = await findFiles({
+          _id: { $in: resultArray },
+          "metadata.user_id": req.user._id,
+          "metadata.folder_id": returnObjectID(req.params.folder),
+          "metadata.isTrashed": false,
+        });
+        const allFiles = await this.getFiles(req);
+        return res.json({
+          success: {
+            message: "Files were uploaded succesfully",
+          },
+          files: allFiles,
+          uploadedFiles,
+        });
+      } else {
+        return res.status(400).json({
+          error: {
+            message:
+              "Files could not be uploaded at this time. Please try again later",
+          },
+        });
+      }
+    }
   });
 
   // If an error occurs, return an error response back to the client
   form.on("error", (err) => {
     if (err) next(err);
   });
+};
 
-  // Once it is finishing parsing the file, upload the file to GridFSBucket
-  form.once("end", () => {
+exports.copyFiles = async (req, res, next) => {
+  const files = [];
+  const filesSelectedLength = req.body.selectedFiles.length;
+  // Pushes the files id and name into the 'files' array
+  for (let i = 0; i < filesSelectedLength; ++i) {
+    files.push({
+      id: returnObjectID(req.body.selectedFiles[i].id),
+      filename: req.body.selectedFiles[i].filename,
+    });
+  }
+  const options = {
+    metadata: {
+      user_id: req.user._id,
+      isTrashed: false,
+      folder_id: returnObjectID(req.params.folder),
+      isFavorited: false,
+    },
+  };
+  const gfs = Connection.gfs;
+  const promises = [];
+  /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
+  for (let i = 0; i < files.length; ++i) {
+    let promise = new Promise((resolve, reject) => {
+      // Downloads the file from the GridFSBucket
+      const downloadStream = gfs.openDownloadStream(
+        returnObjectID(files[i].id)
+      );
+      // Uploads the file to GridFSBucket
+      const writeStream = gfs.openUploadStream(
+        `Copy of ${files[i].filename}`,
+        options
+      );
+      const id = writeStream.id;
+      downloadStream
+        .pipe(writeStream)
+        .on("error", (err) => {
+          reject(err);
+        })
+        .on("finish", () => {
+          resolve(id);
+        });
+    });
+    promises.push(promise);
+  }
+  const resultArray = [];
+  for (const promiseFile of promises) {
+    resultArray.push(await promiseFile);
+  }
+  if (resultArray.length === files.length) {
+    const files = await findFiles({ _id: { $in: resultArray } });
+    const newFiles = { id: resultArray };
     return res.json({
+      files,
+      newFiles,
       success: {
-        message: "Files were sucessfully uploaded",
+        message: "Files were sucessfully copied",
       },
     });
-  });
+  } else {
+    return res.status(400).json({
+      error: {
+        message:
+          "Files could not be copied at this time. Please try again later",
+      },
+    });
+  }
 };
 
 exports.getFiles = async (req, res, next) => {
@@ -96,7 +228,7 @@ exports.deleteFiles = async (req, res, next) => {
       return await this.getTrashFiles(req, res, next);
     })
     .catch((err) => {
-      // If there is an error with Mongo, throw an error
+      // If there is an error with Mongo, an error
       if (err.name === "MongoError")
         return res.status(404).json({
           error: {
@@ -110,12 +242,11 @@ exports.deleteFiles = async (req, res, next) => {
 
 exports.trashFiles = async (req, res, next) => {
   const files = generateFileArray(req);
-  console.log(req.body.isFavorited);
   if (files.length === 0)
     return await findFiles({
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
+      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
   /*
@@ -138,7 +269,7 @@ exports.trashFiles = async (req, res, next) => {
     return await findFiles({
       "metadata.user_id": req.user._id,
       "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
+      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
       "metadata.isFavorited": { $in: req.body.isFavorited },
     });
 };
@@ -206,7 +337,7 @@ exports.renameFile = async (req, res, next) => {
     // Finds file and renames it
     const renamedFile = await Connection.gfs.rename(
       returnObjectID(req.body.id),
-      req.body.newName
+      req.body.newName.trim()
     );
     if (renamedFile === undefined) {
       return res.json({
@@ -216,7 +347,7 @@ exports.renameFile = async (req, res, next) => {
       });
     }
   } catch (err) {
-    // If there is an error with Mongo, throw an error
+    // If there is an error with Mongo, an error
     if (err.name === "MongoError")
       return res.status(404).json({
         error: {
@@ -228,56 +359,11 @@ exports.renameFile = async (req, res, next) => {
   }
 };
 
-exports.copyFiles = (req, res, next) => {
-  const files = [];
-  const filesSelectedLength = req.body.selectedFiles.length;
-  // Pushes the files id and name into the 'files' array
-  for (let i = 0; i < filesSelectedLength; ++i) {
-    files.push({
-      id: returnObjectID(req.body.selectedFiles[i].id),
-      filename: req.body.selectedFiles[i].filename,
-    });
-  }
-  const options = {
-    metadata: {
-      user_id: req.user._id,
-      isTrashed: false,
-      folder_id: returnObjectID(req.body.folder),
-      isFavorited: false,
-    },
-  };
-  const gfs = Connection.gfs;
-  /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
-  files.map((file) => {
-    // Downloads the file from the GridFSBucket
-    const downloadStream = gfs.openDownloadStream(returnObjectID(file.id));
-
-    // Uploads the file to GridFSBucket
-    const writeStream = gfs.openUploadStream(
-      `Copy of ${file.filename}`,
-      options
-    );
-    let id = writeStream.id;
-    // Bytes get downloaded and written into the writestream
-    downloadStream.pipe(writeStream).once("finish", async () => {
-      const files = await findFiles({ _id: id });
-      const newFiles = [{ id }];
-      return res.json({
-        files,
-        newFiles,
-        success: {
-          message: "Files were sucessfully copied",
-        },
-      });
-    });
-  });
-};
-
 exports.undoCopy = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
-  const files = generateFileArray(req);
+  const files = req.body.selectedFiles;
   const deletedFilesPromise = files.map(async (file) => {
-    await Connection.gfs.delete(file);
+    await Connection.gfs.delete(returnObjectID(file));
   });
   return Promise.all(deletedFilesPromise)
     .then(async () => {
@@ -300,14 +386,27 @@ exports.undoCopy = async (req, res, next) => {
 exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFileArray(req);
-  if (files.length === 0) return await this.getFiles(req, res, next);
+  if (files.length === 0)
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+      "metadata.isFavorited":
+        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
+    });
 
   const favoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { "metadata.isFavorited": true } }
   );
   if (favoritedFiles.result.nModified > 0)
-    return await this.getFiles(req, res, next);
+    return await findFiles({
+      "metadata.user_id": req.user._id,
+      "metadata.folder_id": returnObjectID(req.params.folder),
+      "metadata.isTrashed": false,
+      "metadata.isFavorited":
+        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
+    });
 };
 
 exports.unfavoriteFiles = async (req, res, next) => {
@@ -340,45 +439,21 @@ exports.undoFavoriteFiles = async (req, res, next) => {
 exports.moveFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be moved to a new location
   const files = generateFileArray(req);
-  const folders = generateFolderArray(req);
-  let movedFiles = [];
-  let updatedFiles = [];
   if (files.length > 0) {
-    movedFiles = await updateFiles(
+    await updateFiles(
       {
         _id: { $in: files },
       },
       {
         $set: {
-          "metadata.folder_id": returnObjectID(req.body.movedFolder),
+          "metadata.folder_id": returnObjectID(req.body.moveFolder),
         },
       }
     );
-    updatedFiles = await this.getFiles(req, res, next);
-  } else updatedFiles = await this.getFiles(req, res, next);
-  let movedFolders = [];
-  let updatedFolders = [];
-  if (folders.length > 0) {
-    movedFolders = await updateFolders(
-      {
-        _id: { $in: folders },
-      },
-      {
-        $set: {
-          parent_id: returnObjectID(req.body.movedFolder),
-        },
-      }
-    );
-    updatedFolders = await getFolders(req, res, next);
-  } else updatedFolders = await getFolders(req, res, next);
-  return res.json({
-    success: {
-      message: "Files/Folders were successfully moved",
-    },
-    files: updatedFiles,
-    folders: updatedFolders,
-  });
+    return await this.getFiles(req, res, next);
+  } else return await this.getFiles(req, res, next);
 };
+
 exports.homeUnfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);

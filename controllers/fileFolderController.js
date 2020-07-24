@@ -12,6 +12,9 @@ const {
   undoTrashFolders,
   undoFavoriteFolders,
   homeUnfavoriteFolders,
+  getFolderHierarchy,
+  getFolderDetails,
+  moveFolders,
 } = require("./folderController");
 
 const {
@@ -26,16 +29,31 @@ const {
   undoFavoriteFiles,
   unfavoriteFiles,
   homeUnfavoriteFiles,
+  moveFiles,
 } = require("./fileController");
-const { findFolders } = require("../database/crud");
 
 exports.getFilesAndFolders = async (req, res, next) => {
   //Return the files for the specific user
   const files = await getFiles(req, res, next);
   const folders = await getFolders(req, res, next);
+  let folderPath = [];
+  //Used for tracking the hierarchy of folders in Home
+  if (req.params.folder !== undefined)
+    folderPath = await getFolderHierarchy(req, res, next);
+  let moveTitleFolder = {};
+  //Used for tracking the current/previous folder in the move item dialog
+  if (req.query.move === "true") {
+    let data = await getFolderDetails(req.params.folder);
+    moveTitleFolder = {
+      foldername: data[0].foldername,
+      parent_id: data[0].parent_id,
+    };
+  }
   return res.json({
     files,
     folders,
+    folderPath,
+    moveTitleFolder,
     success: {
       message: "Files/folders were succesfully retrieved",
     },
@@ -46,6 +64,7 @@ exports.getFavoriteFilesAndFolders = async (req, res, next) => {
   // Finds the files that the user favorited
   const files = await getFavoriteFiles(req, res, next);
   const folders = await getFavoriteFolders(req, res, next);
+
   return res.json({
     files,
     folders,
@@ -115,6 +134,7 @@ exports.favoriteFilesAndFolders = async (req, res, next) => {
 exports.unfavoriteFilesAndFolders = async (req, res, next) => {
   const files = await unfavoriteFiles(req, res, next);
   const folders = await unfavoriteFolders(req, res, next);
+  console.log("Files", files.length);
   return res.json({
     files,
     folders,
@@ -148,6 +168,16 @@ exports.homeUnfavoriteFilesAndFolders = async (req, res, next) => {
     files,
     folders,
     sucess: { message: "Files/folders were successfully unfavorited" },
+  });
+};
+
+exports.moveFilesAndFolders = async (req, res, next) => {
+  const files = await moveFiles(req, res, next);
+  const folders = await moveFolders(req, res, next);
+  return res.json({
+    files,
+    folders,
+    sucess: { message: "Files/folders were successfully restored" },
   });
 };
 

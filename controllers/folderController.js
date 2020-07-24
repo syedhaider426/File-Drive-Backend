@@ -23,6 +23,38 @@ generateFolderArray = (req) => {
   return folders;
 };
 
+exports.getFolderDetails = async (id) => {
+  return await findFolders({ _id: returnObjectID(id) });
+};
+
+exports.getFolderHierarchy = async (req, res, next) => {
+  const result = await Connection.db
+    .collection("folders")
+    .aggregate([
+      { $match: { _id: returnObjectID(req.params.folder) } }, // Only look at folder
+      {
+        $graphLookup: {
+          from: "folders", // Use the folders collection
+          startWith: "$parent_id", // Start looking at the document's `parent_id` property
+          connectFromField: "parent_id", // A link in the graph is represented by the parent id property...
+          connectToField: "_id", // ... pointing to another folder's _id property
+          as: "connections", // Store this in the `connections` property
+        },
+      },
+    ])
+    .toArray();
+  const folders = [];
+  const f = result[0];
+  for (let i = 0; i < f.connections.length; ++i) {
+    folders.push({
+      _id: f.connections[i]._id,
+      foldername: f.connections[i].foldername,
+    });
+  }
+  folders.push({ _id: f._id, foldername: f.foldername });
+  return folders;
+};
+
 exports.getFolders = async (req, res, next) => {
   return await findFolders({
     user_id: req.user._id,
@@ -68,24 +100,28 @@ exports.createFolder = async (req, res, next) => {
     });
 
   const folder = {
-    foldername: req.body.folder,
+    foldername: req.body.folder.trim(),
     user_id: req.user._id,
-    parent_id: "",
+    parent_id: returnObjectID(req.params.folder),
     description: "",
     createdOn: new Date(),
     isTrashed: false,
+    isFavorited: false,
   };
 
   // Creates folder
   const createdFolder = await createFolder(folder);
-
   // If folder was created succesfully, return a success response back to client
-  if (createdFolder.insertedId)
+  if (createdFolder.insertedId) {
+    const folders = await this.getFolders(req, res, next);
     return res.status(201).json({
       success: {
         message: "Folder successfully created",
       },
+      folders,
+      newFolder: createdFolder.ops,
     });
+  }
 };
 
 exports.renameFolder = async (req, res, next) => {
@@ -108,14 +144,13 @@ exports.renameFolder = async (req, res, next) => {
         message: validation.error,
       },
     });
-
   // Updates the folder with the new folder name
   const renamedFolderResult = await updateFolders(
     {
       _id: returnObjectID(req.body.id),
     },
     {
-      $set: { foldername: req.body.newName },
+      $set: { foldername: req.body.newName.trim() },
     }
   );
 
@@ -156,10 +191,14 @@ exports.deleteFolders = async (req, res, next) => {
 
 exports.trashFolders = async (req, res, next) => {
   const folders = generateFolderArray(req);
-  if (folders.length === 0 && req.body.isFavorited.length === 2)
-    return await this.getFolders(req, res, next);
-  else if (folders.length === 0 && req.body.isFavorited.length === 1)
-    return await this.getFavoriteFolders(req, res, next);
+  if (folders.length === 0) {
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: req.body.trashMenu === undefined ? false : true,
+      isFavorited: { $in: req.body.isFavorited },
+    });
+  }
   let trashedFolders = await updateFolders(
     {
       _id: { $in: folders },
@@ -168,10 +207,15 @@ exports.trashFolders = async (req, res, next) => {
       $set: { isTrashed: true, trashedAt: new Date(), isFavorited: false },
     }
   );
-  if (trashedFolders.result.nModified > 0 && req.body.isFavorited.length === 2)
-    //Return the folders for the specific user
-    return await this.getFolders(req, res, next);
-  else return await this.getFavoriteFolders(req, res, next);
+
+  if (trashedFolders.result.nModified > 0) {
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: req.body.trashMenu === undefined ? false : true,
+      isFavorited: { $in: req.body.isFavorited },
+    });
+  }
 };
 
 exports.restoreFolders = async (req, res, next) => {
@@ -239,15 +283,29 @@ exports.undoTrashFolders = async (req, res, next) => {
 exports.favoriteFolders = async (req, res, next) => {
   // Folders represent an array of folders that will be favorited
   const folders = generateFolderArray(req);
-  if (folders.length === 0) return await this.getFolders(req, res, next);
+  if (folders.length === 0)
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: false,
+      isFavorited:
+        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
+    });
   // Favorites the selected folders
   const favoritedFolders = await updateFolders(
     { _id: { $in: folders } },
     { $set: { isFavorited: true } }
   );
   // If folders were succesfully favorited, return a success response back to the client
+
   if (favoritedFolders.result.nModified > 0)
-    return await this.getFolders(req, res, next);
+    return await findFolders({
+      user_id: req.user._id,
+      parent_id: returnObjectID(req.params.folder),
+      isTrashed: false,
+      isFavorited:
+        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
+    });
 };
 
 exports.unfavoriteFolders = async (req, res, next) => {
@@ -284,24 +342,21 @@ exports.undoFavoriteFolders = async (req, res, next) => {
 };
 
 exports.moveFolders = async (req, res, next) => {
-  // Folders represent an array of folders that have been selected to be moved to a new location
   const folders = generateFolderArray(req);
-  // Change location of folder(s)
-  const movedFolderResult = await updateFolders(
-    {
-      _id: { $in: folders },
-    },
-    {
-      $set: { parent_id: returnObjectID(req.body.movedFolder) },
-    }
-  );
-  // If the folders were moved successfully, return a success response back to the client
-  if (movedFolderResult.result.nModified > 0)
-    return res.json({
-      sucess: {
-        message: "Folders were moved successfully.",
+  if (folders.length > 0) {
+    const result = await updateFolders(
+      {
+        _id: { $in: folders },
       },
-    });
+      {
+        $set: {
+          parent_id: returnObjectID(req.body.moveFolder),
+        },
+      }
+    );
+    console.log(result);
+    return await this.getFolders(req, res, next);
+  } else return await this.getFolders(req, res, next);
 };
 
 exports.homeUnfavoriteFolders = async (req, res, next) => {

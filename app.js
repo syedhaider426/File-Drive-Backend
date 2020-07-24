@@ -9,13 +9,12 @@ const fs = require("fs");
 
 // Creates an instance of express
 const app = express();
+
 const port = keys.port;
 
 // express.json() middleware is used to pass form data into the req.body
-app.use(express.json());
-
 // express.urlencoded() middleware is used to pass objects from client to the server
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json()).use(express.urlencoded({ extended: true }));
 
 //These two modules set up the middleware and then connect to the Mongo database.
 require("./startup/server")(app);
@@ -25,12 +24,6 @@ require("./startup/db")();
 const routesPath = require("path").join(__dirname, "routes");
 fs.readdirSync(routesPath).forEach((file) => {
   require("./routes/" + file)(app);
-});
-
-// Module loader for the pages that are referenced when navigating through the website
-const pagesPath = require("path").join(__dirname, "pages");
-fs.readdirSync(pagesPath).forEach((file) => {
-  require("./pages/" + file)(app);
 });
 
 app.use((req, res, next) => {

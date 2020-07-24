@@ -1,7 +1,6 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
 
 const {
-  resetEmail,
   resetPassword,
   forgotPassword,
   newPassword,
@@ -14,9 +13,6 @@ const {
 module.exports = (app) => {
   // @route POST - Resets the user's password if they are authenticated
   app.post("/api/user/resetPassword", checkAuthenticated, resetPassword);
-
-  // @route POST - Resets the user's email if they are authenticated
-  app.post("/api/user/resetEmail", checkAuthenticated, resetEmail);
 
   // @route POST - Sends an email to the user if they forgot their password
   app.post("/api/user/forgotPassword", forgotPassword);

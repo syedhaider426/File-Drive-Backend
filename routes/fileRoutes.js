@@ -1,10 +1,10 @@
 const { checkAuthenticated } = require("../middlewares/requireLogin");
 const {
   uploadFile,
-  moveFiles,
   renameFile,
   copyFiles,
   undoCopy,
+  viewFile,
 } = require("../controllers/fileController");
 
 const {
@@ -21,6 +21,7 @@ const {
   homeUnfavoriteFilesAndFolders,
   deleteAll,
   restoreAll,
+  moveFilesAndFolders,
 } = require("../controllers/fileFolderController");
 
 /**
@@ -35,7 +36,7 @@ module.exports = (app) => {
   app.post("/api/files/upload/:folder", checkAuthenticated, uploadFile);
 
   // @route POST - Moves a file or files to designated folder if the user is authenticated.
-  app.post("/api/files/move", checkAuthenticated, moveFiles);
+  app.post("/api/files/move", checkAuthenticated, moveFilesAndFolders);
 
   // @route DELETE - Deletes a file or files if the user is authenticated.
   app.post("/api/files/delete", checkAuthenticated, deleteFilesAndFolders);
@@ -46,8 +47,14 @@ module.exports = (app) => {
   // @route POST - Copies a file if the user is authenticated.
   app.post("/api/files/copy", checkAuthenticated, copyFiles);
 
+  // @route POST - Copies a file if the user is authenticated.
+  app.post("/api/files/copy/:folder", checkAuthenticated, copyFiles);
+
   // @route POST - Deletes the copied files if the user is authenticated.
   app.post("/api/files/undoCopy", checkAuthenticated, undoCopy);
+
+  // @route POST - Deletes the copied files if the user is authenticated.
+  app.post("/api/files/undoCopy/:folder", checkAuthenticated, undoCopy);
 
   // @route POST - Sends file to trash if the user is authenticated.
   app.post(
@@ -121,4 +128,6 @@ module.exports = (app) => {
 
   // @route post - Restore all files and folders for user
   app.post("/api/files/restoreAll", checkAuthenticated, restoreAll);
+
+  app.get("/api/files/:file", checkAuthenticated, viewFile);
 };
