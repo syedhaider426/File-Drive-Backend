@@ -12,16 +12,16 @@ const passport = require("passport");
  */
 module.exports = (app) => {
   // @route POST - Registers a user if they are not authenticated.
-  app.post("/api/user/register", checkNotAuthenticated, register);
+  app.post("/api/users/registration", checkNotAuthenticated, register);
 
-  // @route GET - Verifies the user's email if they provide the token that is sent to their email.
-  app.get("/confirmRegistration", confirmUser);
+  // @route PATCH - Verifies the user's email if they provide the token that is sent to their email.
+  app.patch("/api/users/registration-confirmation", confirmUser);
 
   // @route POST - Resends an confirmation email to user if they did not their confirm their account.
-  app.post("/api/user/resendEmailVerification", resendVerificationEmail);
+  app.post("/api/users/confirmation", resendVerificationEmail);
 
   // @route POST - Logs in the user if they are not authenticated and provide the proper credentials.
-  app.post("/api/user/login", checkNotAuthenticated, (req, res, next) => {
+  app.post("/api/users/login", checkNotAuthenticated, (req, res, next) => {
     passport.authenticate("local", (err, user, info) => {
       if (err) next(err);
       if (!user)
@@ -33,7 +33,8 @@ module.exports = (app) => {
     })(req, res, next);
   });
 
-  app.get("/logout", (req, res) => {
+  // @route POST - Logout
+  app.post("/logout", (req, res) => {
     req.session.destroy();
     res.json();
   });

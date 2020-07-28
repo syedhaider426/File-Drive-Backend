@@ -2,11 +2,6 @@ const { checkAuthenticated } = require("../middlewares/requireLogin");
 const {
   createFolder,
   renameFolder,
-  moveFolders,
-  deleteFolders,
-  restoreFolders,
-  favoriteFolders,
-  unfavoriteFolders,
 } = require("../controllers/folderController");
 
 /**
@@ -15,14 +10,11 @@ const {
  */
 module.exports = (app) => {
   // @route POST - Creates a folder if the user is authenticated.
-  app.post("/api/folders/create", checkAuthenticated, createFolder);
+  app.post("/api/folders", checkAuthenticated, createFolder);
 
   // @route POST - Creates a folder if the user is authenticated.
-  app.post("/api/folders/create/:folder", checkAuthenticated, createFolder);
+  app.post("/api/folders/:folder", checkAuthenticated, createFolder);
 
-  // @route POST - Renames a folder if the user is authenticated.
-  app.post("/api/folders/rename", checkAuthenticated, renameFolder);
-
-  // @route POST - Moves a folder if the user is authenticated.
-  app.post("/api/folders/move", checkAuthenticated, moveFolders);
+  // @route PUT - Renames a folder if the user is authenticated.
+  app.put("/api/folders/name", checkAuthenticated, renameFolder);
 };

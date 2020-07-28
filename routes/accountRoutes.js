@@ -11,17 +11,14 @@ const {
  * @param {*} app
  */
 module.exports = (app) => {
-  // @route POST - Resets the user's password if they are authenticated
-  app.post("/api/user/resetPassword", checkAuthenticated, resetPassword);
+  // @route PATCH - Resets the user's password if they are authenticated
+  app.patch("/api/users/password-reset", checkAuthenticated, resetPassword);
 
   // @route POST - Sends an email to the user if they forgot their password
-  app.post("/api/user/forgotPassword", forgotPassword);
+  app.post("/api/users/password-email", forgotPassword);
 
-  // @route POST - Saves the user's new password if a valid token is provided.
-  app.post("/api/user/newPassword", newPassword);
-
-  // @route GET - Saves the user's new password if a valid token is provided.
-  app.get("/getUser", (req, res) => {
-    return res.json({ loggedIn: req.isAuthenticated() });
-  });
+  /* @route PATCH - Saves the user's new password if a valid token is provided.
+   ** This endpoint is referenced when a user receives an email to reset their password
+   */
+  app.patch("/api/users/password", newPassword);
 };
