@@ -18,7 +18,7 @@ module.exports = (app) => {
   // @route POST - Uploads a file or files if the user is authenticated.
   app.post("/api/files/upload", checkAuthenticated, uploadFile);
 
-  // @route POST - Uploads a file or files to a specified folder if the folder exists and the user is authenticated.
+  // @route POST - Uploads a file or files to a specified folder and the user is authenticated.
   app.post("/api/files/upload/:folder", checkAuthenticated, uploadFile);
 
   // @route POST - Copies a file if the user is authenticated.
@@ -33,6 +33,6 @@ module.exports = (app) => {
   // @route DELETE - Deletes the copied files if the user is authenticated.
   app.delete("/api/files/copy", checkAuthenticated, undoCopy);
 
-  // @route DELETE - Deletes the copied files if the user is authenticated.
+  // @route DELETE - Deletes the copied files in a specific folder if the user is authenticated.
   app.delete("/api/files/copy/:folder", checkAuthenticated, undoCopy);
 };
