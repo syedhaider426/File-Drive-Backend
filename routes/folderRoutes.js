@@ -2,12 +2,8 @@ const { checkAuthenticated } = require("../middlewares/requireLogin");
 const {
   createFolder,
   renameFolder,
-  moveFolders,
-  deleteFolders,
-  restoreFolders,
-  favoriteFolders,
-  unfavoriteFolders,
 } = require("../controllers/folderController");
+const { asyncHandler } = require("../services/asyncHandler");
 
 /**
  * This module focuses on the endpoints related to creating, renaming, and moving folders.
@@ -15,14 +11,15 @@ const {
  */
 module.exports = (app) => {
   // @route POST - Creates a folder if the user is authenticated.
-  app.post("/api/folders/create", checkAuthenticated, createFolder);
+  app.post("/api/folders", checkAuthenticated, asyncHandler(createFolder));
 
-  // @route POST - Creates a folder if the user is authenticated.
-  app.post("/api/folders/create/:folder", checkAuthenticated, createFolder);
+  // @route POST - Creates a folder in a specific folder if the user is authenticated.
+  app.post(
+    "/api/folders/:folder",
+    checkAuthenticated,
+    asyncHandler(createFolder)
+  );
 
-  // @route POST - Renames a folder if the user is authenticated.
-  app.post("/api/folders/rename", checkAuthenticated, renameFolder);
-
-  // @route POST - Moves a folder if the user is authenticated.
-  app.post("/api/folders/move", checkAuthenticated, moveFolders);
+  // @route PUT - Renames a folder if the user is authenticated.
+  app.put("/api/folders/name", checkAuthenticated, asyncHandler(renameFolder));
 };

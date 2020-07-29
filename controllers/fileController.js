@@ -3,7 +3,7 @@ const formidable = require("formidable");
 const fs = require("fs");
 const returnObjectID = require("../database/returnObjectID");
 const Joi = require("@hapi/joi");
-const { findFiles, updateFiles } = require("../database/crud");
+const { findFiles, updateFiles } = require("../services/files");
 
 generateFileArray = (req) => {
   const files = [];
