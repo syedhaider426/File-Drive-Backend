@@ -3,9 +3,6 @@ const session = require("express-session");
 const passportKey = require("../config/keys").passportKey;
 const passport = require("passport");
 const initializePassport = require("../services/passportConfig");
-const { checkNotAuthenticated } = require("../middlewares/requireLogin");
-//https://www.freecodecamp.org/news/require-module-in-node-js-everything-about-module-require-ccccd3ad383/
-//www.freecodecamp.org/news/requiring-modules-in-node-js-everything-you-need-to-know-e7fbd119be8/
 
 /**
  * This module configures helmet, express-session, and passport to Express middleware stack.
@@ -22,7 +19,6 @@ module.exports = function (app) {
       secret: passportKey,
       resave: false,
       saveUninitialized: true,
-      name: "session_ID",
     })
   );
 
@@ -39,7 +35,4 @@ module.exports = function (app) {
    * @param {*} passport - Passport object used to passport properties to function
    */
   initializePassport(app, passport);
-
-  //Sets the templating engine to ejs
-  app.set("view engine", "ejs");
 };

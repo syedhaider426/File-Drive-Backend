@@ -88,7 +88,7 @@ exports.register = async (req, res, next) => {
   } catch (err) {
     // If email already exists, throw an error
     if (err.name === "MongoError")
-      return res.status(404).json({
+      return res.status(409).json({
         error: {
           message: "Email is already registered. Please try again.",
         },

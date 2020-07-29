@@ -5,6 +5,7 @@ const {
   resendVerificationEmail,
 } = require("../controllers/registerUserController");
 const passport = require("passport");
+const { asyncHandler } = require("../services/asyncHandler");
 
 /**
  * This module focuses on the endpoints related to registering a user, logging in the user, and resending email verifications.
@@ -18,7 +19,7 @@ module.exports = (app) => {
   app.patch("/api/users/registration-confirmation", confirmUser);
 
   // @route POST - Resends an confirmation email to user if they did not their confirm their account.
-  app.post("/api/users/confirmation", resendVerificationEmail);
+  app.post("/api/users/confirmation", asyncHandler(resendVerificationEmail));
 
   // @route POST - Logs in the user if they are not authenticated and provide the proper credentials.
   app.post("/api/users/login", checkNotAuthenticated, (req, res, next) => {
@@ -36,6 +37,6 @@ module.exports = (app) => {
   // @route POST - Logout
   app.post("/logout", (req, res) => {
     req.session.destroy();
-    res.json();
+    res.json({ success: { message: "Succesfully logged out" } });
   });
 };

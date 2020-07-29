@@ -1,5 +1,3 @@
-const Connection = require("../database/Connection");
-
 const {
   trashFolders,
   deleteFolders,

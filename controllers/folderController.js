@@ -5,10 +5,10 @@ const {
   findFolders,
   updateFolders,
   createFolder,
-  updateFiles,
-  findFiles,
   deleteFolder,
-} = require("../database/crud");
+} = require("../services/folders");
+
+const { findFiles, updateFiles } = require("../services/files");
 
 generateFolderArray = (req) => {
   const folders = [];

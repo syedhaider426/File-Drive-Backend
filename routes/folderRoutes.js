@@ -3,6 +3,7 @@ const {
   createFolder,
   renameFolder,
 } = require("../controllers/folderController");
+const { asyncHandler } = require("../services/asyncHandler");
 
 /**
  * This module focuses on the endpoints related to creating, renaming, and moving folders.
@@ -10,11 +11,15 @@ const {
  */
 module.exports = (app) => {
   // @route POST - Creates a folder if the user is authenticated.
-  app.post("/api/folders", checkAuthenticated, createFolder);
+  app.post("/api/folders", checkAuthenticated, asyncHandler(createFolder));
 
   // @route POST - Creates a folder in a specific folder if the user is authenticated.
-  app.post("/api/folders/:folder", checkAuthenticated, createFolder);
+  app.post(
+    "/api/folders/:folder",
+    checkAuthenticated,
+    asyncHandler(createFolder)
+  );
 
   // @route PUT - Renames a folder if the user is authenticated.
-  app.put("/api/folders/name", checkAuthenticated, renameFolder);
+  app.put("/api/folders/name", checkAuthenticated, asyncHandler(renameFolder));
 };

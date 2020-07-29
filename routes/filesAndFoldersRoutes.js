@@ -23,7 +23,7 @@ const {
  */
 module.exports = (app) => {
   // @route GET - Gets files and folders for in the 'Home'/'My Drive' directory for specific user
-  app.get("/api/users/allFiles", checkAuthenticated, getFilesAndFolders);
+  app.get("/api/drive/home", checkAuthenticated, getFilesAndFolders);
 
   // @route GET - Gets favorited files and folders for specific user
   app.get(
