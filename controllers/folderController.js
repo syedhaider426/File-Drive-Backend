@@ -131,7 +131,6 @@ exports.renameFolder = async (req, res, next) => {
       "string.empty": `Folder cannot be empty.`,
     }),
   });
-
   // Validate user inputs
   const validation = await schema.validate({
     folder: req.body.newName,
@@ -153,14 +152,14 @@ exports.renameFolder = async (req, res, next) => {
       $set: { foldername: req.body.newName.trim() },
     }
   );
-
   // If the folder was renamed succesfully, send a success response back to the client
-  if (renamedFolderResult.result.nModified === 1)
+  if (renamedFolderResult.result.nModified === 1) {
     return res.json({
       sucess: {
         message: "Folder was renamed successfully.",
       },
     });
+  }
 };
 
 exports.deleteFolders = async (req, res, next) => {

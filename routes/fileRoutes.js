@@ -29,11 +29,7 @@ module.exports = (app) => {
   app.post("/api/files/copy/:folder", checkAuthenticated, copyFiles);
 
   // @route PATCH - Renames a file if the user is authenticated.
-  app.patch(
-    "/api/files/fileName",
-    checkAuthenticated,
-    asyncHandler(renameFile)
-  );
+  app.patch("/api/files/name", checkAuthenticated, asyncHandler(renameFile));
 
   // @route DELETE - Deletes the copied files if the user is authenticated.
   app.delete("/api/files/copy", checkAuthenticated, undoCopy);

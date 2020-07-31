@@ -1,11 +1,12 @@
 const bcrypt = require("bcrypt");
-const Connection = require("../database/Connection");
 const Joi = require("@hapi/joi");
 const jwt = require("jsonwebtoken");
 const returnObjectID = require("../database/returnObjectID");
 const keys = require("../config/keys");
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(keys.sendgrid_api_key);
+const Connection = require("../database/Connection");
+const users = Connection.db.collection("users");
 
 exports.register = async (req, res, next) => {
   //Create JOI schema
@@ -45,7 +46,7 @@ exports.register = async (req, res, next) => {
     const password = await bcrypt.hash(req.body.password, 10);
 
     // Create new user
-    const newUser = await Connection.db.collection("users").insertOne({
+    const newUser = await users.insertOne({
       email: req.body.email,
       password: password,
       isVerified: false,
@@ -112,12 +113,10 @@ exports.confirmUser = async (req, res, next) => {
       });
 
     // Verify the user by updating isVerified field in the db
-    const verifiedUser = await Connection.db
-      .collection("users")
-      .updateOne(
-        { _id: returnObjectID(user._id) },
-        { $set: { isVerified: true } }
-      );
+    const verifiedUser = await users.updateOne(
+      { _id: returnObjectID(user._id) },
+      { $set: { isVerified: true } }
+    );
 
     // On successful update, send the 'success' response to the client
     if (verifiedUser.result.nModified === 1)
@@ -167,9 +166,7 @@ exports.resendVerificationEmail = async (req, res, next) => {
 
   try {
     // Finds user based off email
-    const user = await Connection.db
-      .collection("users")
-      .findOne({ email: req.body.email });
+    const user = await users.findOne({ email: req.body.email });
 
     // If the user is already verified, notify them to sign in
     if (user.isVerified)

@@ -64,7 +64,7 @@ module.exports = (app) => {
 
   // @route PATCH - Restores a file or folder in a specific folder if the user accidentally trashes it.
   app.patch(
-    "/api/files/undo-trash/:folder",
+    "/api/files/trash/undo-trash/:folder",
     checkAuthenticated,
     undoTrashFilesAndFolders
   );
