@@ -35,10 +35,9 @@ exports.uploadFile = async (req, res, next) => {
   };
 
   //Pass in an array of files
-  const form = new formidable.IncomingForm(req, res, next);
+  const form = formidable.IncomingForm();
   form.multiples = true;
   form.maxFileSize = 3000 * 1024 * 1024; //3gb
-
   //This is necessary to trigger the events
   form.parse(req, async (err, fields, fileList) => {
     if (fileList.files.length === undefined) {
@@ -70,6 +69,7 @@ exports.uploadFile = async (req, res, next) => {
       let promises = [];
       for (let i = 0; i < fileList.files.length; ++i) {
         let promise = new Promise((resolve, reject) => {
+          options.contentType = fileList.files[i].type;
           const writeStream = Connection.gfs.openUploadStream(
             fileList.files[i].name,
             options
@@ -116,10 +116,10 @@ exports.uploadFile = async (req, res, next) => {
     }
   });
 
-  // If an error occurs, return an error response back to the client
-  form.on("error", (err) => {
-    if (err) next(err);
-  });
+  // // If an error occurs, return an error response back to the client
+  // form.on("error", (err) => {
+  //   if (err) next(err);
+  // });
 };
 
 exports.copyFiles = async (req, res, next) => {
@@ -240,15 +240,9 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
-exports.trashFiles = async (req, res, next) => {
+exports.trashFiles = async (req) => {
   const files = generateFileArray(req);
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
-      "metadata.isFavorited": { $in: req.body.isFavorited },
-    });
+  if (files.length === 0) return;
   /*
    * Trash the files
    * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
@@ -264,14 +258,7 @@ exports.trashFiles = async (req, res, next) => {
       },
     }
   );
-  if (trashedFiles.result.nModified > 0)
-    //Return the files for the specific user
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
-      "metadata.isFavorited": { $in: req.body.isFavorited },
-    });
+  if (trashedFiles.result.nModified > 0) return;
 };
 
 exports.restoreFiles = async (req, res, next) => {

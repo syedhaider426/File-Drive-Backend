@@ -188,16 +188,9 @@ exports.deleteFolders = async (req, res, next) => {
   });
 };
 
-exports.trashFolders = async (req, res, next) => {
+exports.trashFolders = async (req) => {
   const folders = generateFolderArray(req);
-  if (folders.length === 0) {
-    return await findFolders({
-      user_id: req.user._id,
-      parent_id: returnObjectID(req.params.folder),
-      isTrashed: req.body.trashMenu === undefined ? false : true,
-      isFavorited: { $in: req.body.isFavorited },
-    });
-  }
+  if (folders.length === 0) return;
   let trashedFolders = await updateFolders(
     {
       _id: { $in: folders },
@@ -207,14 +200,7 @@ exports.trashFolders = async (req, res, next) => {
     }
   );
 
-  if (trashedFolders.result.nModified > 0) {
-    return await findFolders({
-      user_id: req.user._id,
-      parent_id: returnObjectID(req.params.folder),
-      isTrashed: req.body.trashMenu === undefined ? false : true,
-      isFavorited: { $in: req.body.isFavorited },
-    });
-  }
+  if (trashedFolders.result.nModified > 0) return;
 };
 
 exports.restoreFolders = async (req, res, next) => {
@@ -353,7 +339,7 @@ exports.moveFolders = async (req, res, next) => {
         },
       }
     );
-    console.log(result);
+
     return await this.getFolders(req, res, next);
   } else return await this.getFolders(req, res, next);
 };

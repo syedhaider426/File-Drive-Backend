@@ -86,11 +86,9 @@ exports.getTrashFilesAndFolders = async (req, res, next) => {
 };
 
 exports.trashFilesAndFolders = async (req, res, next) => {
-  const files = await trashFiles(req, res, next);
-  const folders = await trashFolders(req, res, next);
+  await trashFiles(req, res, next);
+  await trashFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     success: {
       message: "Files/folders were succesfully trashed",
     },
@@ -132,7 +130,6 @@ exports.favoriteFilesAndFolders = async (req, res, next) => {
 exports.unfavoriteFilesAndFolders = async (req, res, next) => {
   const files = await unfavoriteFiles(req, res, next);
   const folders = await unfavoriteFolders(req, res, next);
-  console.log("Files", files.length);
   return res.json({
     files,
     folders,
