@@ -96,11 +96,9 @@ exports.trashFilesAndFolders = async (req, res, next) => {
 };
 
 exports.deleteFilesAndFolders = async (req, res, next) => {
-  const files = await deleteFiles(req, res, next);
-  const folders = await deleteFolders(req, res, next);
+  await deleteFiles(req, res, next);
+  await deleteFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     success: {
       message: "Files/folders were succesfully deleted",
     },
@@ -108,8 +106,8 @@ exports.deleteFilesAndFolders = async (req, res, next) => {
 };
 
 exports.restoreFilesAndFolders = async (req, res, next) => {
-  const files = await restoreFiles(req, res, next);
-  const folders = await restoreFolders(req, res, next);
+  await restoreFiles(req, res, next);
+  await restoreFolders(req, res, next);
   return res.json({
     files,
     folders,
@@ -118,60 +116,48 @@ exports.restoreFilesAndFolders = async (req, res, next) => {
 };
 
 exports.favoriteFilesAndFolders = async (req, res, next) => {
-  const files = await favoriteFiles(req, res, next);
-  const folders = await favoriteFolders(req, res, next);
+  await favoriteFiles(req, res, next);
+  await favoriteFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully favorited" },
   });
 };
 
 exports.unfavoriteFilesAndFolders = async (req, res, next) => {
-  const files = await unfavoriteFiles(req, res, next);
-  const folders = await unfavoriteFolders(req, res, next);
+  await unfavoriteFiles(req, res, next);
+  await unfavoriteFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully unfavorited" },
   });
 };
 
 exports.undoTrashFilesAndFolders = async (req, res, next) => {
-  const files = await undoTrashFiles(req, res, next);
-  const folders = await undoTrashFolders(req, res, next);
+  await undoTrashFiles(req, res, next);
+  await undoTrashFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully restored" },
   });
 };
 exports.undoFavoriteFilesAndFolders = async (req, res, next) => {
-  const files = await undoFavoriteFiles(req, res, next);
-  const folders = await undoFavoriteFolders(req, res, next);
+  await undoFavoriteFiles(req, res, next);
+  await undoFavoriteFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully unfavorited" },
   });
 };
 
 exports.homeUnfavoriteFilesAndFolders = async (req, res, next) => {
-  const files = await homeUnfavoriteFiles(req, res, next);
-  const folders = await homeUnfavoriteFolders(req, res, next);
+  await homeUnfavoriteFiles(req, res, next);
+  await homeUnfavoriteFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully unfavorited" },
   });
 };
 
 exports.moveFilesAndFolders = async (req, res, next) => {
-  const files = await moveFiles(req, res, next);
-  const folders = await moveFolders(req, res, next);
+  await moveFiles(req, res, next);
+  await moveFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully restored" },
   });
 };
@@ -180,28 +166,26 @@ exports.deleteAll = async (req, res, next) => {
   const files = await getTrashFiles(req, res, next);
   const folders = await getTrashFolders(req, res, next);
   req.body.selectedFiles = files;
-  const filesResult = await deleteFiles(req, res, next);
+  await deleteFiles(req, res, next);
   req.body.selectedFolders = folders;
-  const foldersResult = await deleteFolders(req, res, next);
-  if (filesResult.length == 0 && foldersResult.length === 0)
-    res.json({
-      success: {
-        message: "Succesfully emptied trash.",
-      },
-    });
+  await deleteFolders(req, res, next);
+  res.json({
+    success: {
+      message: "Succesfully emptied trash.",
+    },
+  });
 };
 
 exports.restoreAll = async (req, res, next) => {
   const files = await getTrashFiles(req, res, next);
   const folders = await getTrashFolders(req, res, next);
   req.body.selectedFiles = files;
-  const filesResult = await restoreFiles(req, res, next);
+  await restoreFiles(req, res, next);
   req.body.selectedFolders = folders;
-  const foldersResult = await restoreFolders(req, res, next);
-  if (filesResult.length == 0 && foldersResult.length === 0)
-    res.json({
-      success: {
-        message: "Succesfully restored trash.",
-      },
-    });
+  await restoreFolders(req, res, next);
+  res.json({
+    success: {
+      message: "Succesfully restored trash.",
+    },
+  });
 };
