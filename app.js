@@ -17,7 +17,7 @@ app.use(express.json()).use(express.urlencoded({ extended: true }));
 
 // FrontEnd
 app.use(
-  express.static(path.join(__dirname, "../Google-Drive-Clone-FrontEnd/public"))
+  express.static(path.join(__dirname, "../Google-Drive-Clone-FrontEnd/build"))
 );
 
 //These two modules set up the middleware and then connect to the Mongo database.
