@@ -6,6 +6,7 @@ sgMail.setApiKey(keys.sendgrid_api_key);
 // Requires in the express and fs module
 const express = require("express");
 const fs = require("fs");
+const path = require("path");
 
 // Creates an instance of express
 const app = express();
@@ -13,6 +14,11 @@ const app = express();
 // express.json() middleware is used to pass form data into the req.body
 // express.urlencoded() middleware is used to pass objects from client to the server
 app.use(express.json()).use(express.urlencoded({ extended: true }));
+
+// FrontEnd
+app.use(
+  express.static(path.join(__dirname, "../Google-Drive-Clone-FrontEnd/public"))
+);
 
 //These two modules set up the middleware and then connect to the Mongo database.
 require("./startup/server")(app);
