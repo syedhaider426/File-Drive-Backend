@@ -1,4 +1,4 @@
-const bcrypt = require("bcrypt"); //Library used to hash/decrypt passwords
+const bcrypt = require("bcryptjs"); //Library used to hash/decrypt passwords
 const Joi = require("@hapi/joi"); //Library used to validate inputs
 const {
   getUserById,

@@ -1,6 +1,6 @@
 const Connection = require("../database/Connection");
 const returnObjectID = require("../database/returnObjectID");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Joi = require("@hapi/joi");
 const keys = require("../config/keys");
