@@ -109,8 +109,6 @@ exports.restoreFilesAndFolders = async (req, res, next) => {
   await restoreFiles(req, res, next);
   await restoreFolders(req, res, next);
   return res.json({
-    files,
-    folders,
     sucess: { message: "Files/folders were successfully restored" },
   });
 };
