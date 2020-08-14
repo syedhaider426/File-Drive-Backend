@@ -20,6 +20,10 @@ module.exports = (app) => {
     asyncHandler(createFolder)
   );
 
-  // @route PUT - Renames a folder if the user is authenticated.
-  app.put("/api/folders/name", checkAuthenticated, asyncHandler(renameFolder));
+  // @route PATCH - Renames a folder if the user is authenticated.
+  app.patch(
+    "/api/folders/name",
+    checkAuthenticated,
+    asyncHandler(renameFolder)
+  );
 };

@@ -30,9 +30,7 @@ module.exports = function (app) {
 
   /**
    * Functions sets the strategy, and the process of serializing/deserializing a user
-   *
-   * @param {*} app - Express object that is used to add other modules onto its middleware stack
    * @param {*} passport - Passport object used to passport properties to function
    */
-  initializePassport(app, passport);
+  initializePassport(passport);
 };

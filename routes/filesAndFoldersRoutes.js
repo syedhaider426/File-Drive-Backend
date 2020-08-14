@@ -27,23 +27,19 @@ module.exports = (app) => {
 
   // @route GET - Gets favorited files and folders for specific user
   app.get(
-    "/api/users/favorites",
+    "/api/drive/favorites",
     checkAuthenticated,
     getFavoriteFilesAndFolders
   );
 
   // @route GET - Gets trashed files and folders for users
-  app.get("/api/users/trash", checkAuthenticated, getTrashFilesAndFolders);
+  app.get("/api/drive/trash", checkAuthenticated, getTrashFilesAndFolders);
 
   // @route GET - Gets files and folders in a specific folder for specific user
-  app.get("/api/users/files/:folder", checkAuthenticated, getFilesAndFolders);
+  app.get("/api/drive/folders/:folder", checkAuthenticated, getFilesAndFolders);
 
   // @route PATCH - Moves a files/folders to designated folder if the user is authenticated.
-  app.patch(
-    "/api/files/moveTo-folder",
-    checkAuthenticated,
-    moveFilesAndFolders
-  );
+  app.patch("/api/files/move", checkAuthenticated, moveFilesAndFolders);
 
   // @route PATCH - Sends files/folders to trash if the user is authenticated.
   app.patch("/api/files/trash", checkAuthenticated, trashFilesAndFolders);
@@ -57,7 +53,7 @@ module.exports = (app) => {
 
   // @route PATCH - Restores a files/folders if the user accidentally trashes it.
   app.patch(
-    "/api/files/trash/undo-trash",
+    "/api/files/undo-trash",
     checkAuthenticated,
     undoTrashFilesAndFolders
   );

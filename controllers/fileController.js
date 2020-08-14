@@ -35,10 +35,9 @@ exports.uploadFile = async (req, res, next) => {
   };
 
   //Pass in an array of files
-  const form = new formidable.IncomingForm(req, res, next);
+  const form = formidable.IncomingForm();
   form.multiples = true;
   form.maxFileSize = 3000 * 1024 * 1024; //3gb
-
   //This is necessary to trigger the events
   form.parse(req, async (err, fields, fileList) => {
     if (fileList.files.length === undefined) {
@@ -70,6 +69,7 @@ exports.uploadFile = async (req, res, next) => {
       let promises = [];
       for (let i = 0; i < fileList.files.length; ++i) {
         let promise = new Promise((resolve, reject) => {
+          options.contentType = fileList.files[i].type;
           const writeStream = Connection.gfs.openUploadStream(
             fileList.files[i].name,
             options
@@ -116,10 +116,10 @@ exports.uploadFile = async (req, res, next) => {
     }
   });
 
-  // If an error occurs, return an error response back to the client
-  form.on("error", (err) => {
-    if (err) next(err);
-  });
+  // // If an error occurs, return an error response back to the client
+  // form.on("error", (err) => {
+  //   if (err) next(err);
+  // });
 };
 
 exports.copyFiles = async (req, res, next) => {
@@ -128,7 +128,7 @@ exports.copyFiles = async (req, res, next) => {
   // Pushes the files id and name into the 'files' array
   for (let i = 0; i < filesSelectedLength; ++i) {
     files.push({
-      id: returnObjectID(req.body.selectedFiles[i].id),
+      _id: returnObjectID(req.body.selectedFiles[i]._id),
       filename: req.body.selectedFiles[i].filename,
     });
   }
@@ -147,7 +147,7 @@ exports.copyFiles = async (req, res, next) => {
     let promise = new Promise((resolve, reject) => {
       // Downloads the file from the GridFSBucket
       const downloadStream = gfs.openDownloadStream(
-        returnObjectID(files[i].id)
+        returnObjectID(files[i]._id)
       );
       // Uploads the file to GridFSBucket
       const writeStream = gfs.openUploadStream(
@@ -219,13 +219,13 @@ exports.getFavoriteFiles = async (req, res, next) => {
 exports.deleteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be deleted permanently
   const files = generateFileArray(req);
-  if (files.length === 0) return await this.getTrashFiles(req, res, next);
+  if (files.length === 0) return;
   const deletedFilesPromise = files.map(async (file) => {
     await Connection.gfs.delete(file);
   });
   return Promise.all(deletedFilesPromise)
     .then(async () => {
-      return await this.getTrashFiles(req, res, next);
+      return;
     })
     .catch((err) => {
       // If there is an error with Mongo, an error
@@ -240,15 +240,9 @@ exports.deleteFiles = async (req, res, next) => {
     });
 };
 
-exports.trashFiles = async (req, res, next) => {
+exports.trashFiles = async (req) => {
   const files = generateFileArray(req);
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
-      "metadata.isFavorited": { $in: req.body.isFavorited },
-    });
+  if (files.length === 0) return;
   /*
    * Trash the files
    * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
@@ -264,14 +258,7 @@ exports.trashFiles = async (req, res, next) => {
       },
     }
   );
-  if (trashedFiles.result.nModified > 0)
-    //Return the files for the specific user
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": req.body.trashMenu === undefined ? false : true,
-      "metadata.isFavorited": { $in: req.body.isFavorited },
-    });
+  if (trashedFiles.result.nModified > 0) return;
 };
 
 exports.restoreFiles = async (req, res, next) => {
@@ -281,7 +268,7 @@ exports.restoreFiles = async (req, res, next) => {
    * Restore the folders
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
    */
-  if (files.length === 0) return await this.getTrashFiles(req, res, next);
+  if (files.length === 0) return;
   const restoredFiles = await updateFiles(
     {
       "metadata.user_id": req.user._id,
@@ -289,8 +276,7 @@ exports.restoreFiles = async (req, res, next) => {
     },
     { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
   );
-  if (restoredFiles.result.nModified > 0)
-    return await this.getTrashFiles(req, res, next);
+  if (restoredFiles.result.nModified > 0) return;
 };
 
 exports.undoTrashFiles = async (req, res, next) => {
@@ -300,7 +286,7 @@ exports.undoTrashFiles = async (req, res, next) => {
    * Restore the folders
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
    */
-  if (files.length === 0) return await this.getFiles(req, res, next);
+  if (files.length === 0) return;
   const restoredFiles = await updateFiles(
     {
       "metadata.user_id": req.user._id,
@@ -308,8 +294,7 @@ exports.undoTrashFiles = async (req, res, next) => {
     },
     { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
   );
-  if (restoredFiles.result.nModified > 0)
-    return await this.getFiles(req, res, next);
+  if (restoredFiles.result.nModified > 0) return;
 };
 
 exports.renameFile = async (req, res, next) => {
@@ -367,8 +352,7 @@ exports.undoCopy = async (req, res, next) => {
   });
   return Promise.all(deletedFilesPromise)
     .then(async () => {
-      const files = await this.getFiles(req, res, next);
-      res.json({ files });
+      return;
     })
     .catch((err) => {
       // If there is an error with Mongo, throw an error
@@ -386,53 +370,37 @@ exports.undoCopy = async (req, res, next) => {
 exports.favoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be favorited
   const files = generateFileArray(req);
-  if (files.length === 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
-      "metadata.isFavorited":
-        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
-    });
-
+  if (files.length === 0) return;
   const favoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { "metadata.isFavorited": true } }
   );
-  if (favoritedFiles.result.nModified > 0)
-    return await findFiles({
-      "metadata.user_id": req.user._id,
-      "metadata.folder_id": returnObjectID(req.params.folder),
-      "metadata.isTrashed": false,
-      "metadata.isFavorited":
-        req.body.favoritesMenu === undefined ? { $in: [false, true] } : true,
-    });
+  if (favoritedFiles.result.nModified > 0) return;
 };
 
 exports.unfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);
-  if (files.length === 0) return await this.getFavoriteFiles(req, res, next);
+  if (files.length === 0) return;
 
   const unfavoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { "metadata.isFavorited": false } }
   );
-  if (unfavoritedFiles.result.nModified > 0)
-    return await this.getFavoriteFiles(req, res, next);
+  if (unfavoritedFiles.result.nModified > 0) return;
 };
 
 exports.undoFavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);
-  if (files.length === 0) return await this.getFiles(req, res, next);
+  if (files.length === 0) return;
 
   const unfavoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { "metadata.isFavorited": false } }
   );
   if (unfavoritedFiles.result.nModified > 0) {
-    return await this.getFiles(req, res, next);
+    return;
   }
 };
 
@@ -440,7 +408,7 @@ exports.moveFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be moved to a new location
   const files = generateFileArray(req);
   if (files.length > 0) {
-    await updateFiles(
+    const movedFiles = await updateFiles(
       {
         _id: { $in: files },
       },
@@ -450,19 +418,18 @@ exports.moveFiles = async (req, res, next) => {
         },
       }
     );
-    return await this.getFiles(req, res, next);
-  } else return await this.getFiles(req, res, next);
+    if (movedFiles.result.nModified > 0) return;
+  }
 };
 
 exports.homeUnfavoriteFiles = async (req, res, next) => {
   // Files represent an array of files that have been selected to be unfavorited
   const files = generateFileArray(req);
-  if (files.length === 0) return await this.getFiles(req, res, next);
+  if (files.length === 0) return;
 
   const unfavoritedFiles = await updateFiles(
     { _id: { $in: files } },
     { $set: { "metadata.isFavorited": false } }
   );
-  if (unfavoritedFiles.result.nModified > 0)
-    return await this.getFiles(req, res, next);
+  if (unfavoritedFiles.result.nModified > 0) return;
 };
