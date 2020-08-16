@@ -63,6 +63,13 @@ exports.getFolders = async (req, res, next) => {
   });
 };
 
+exports.getAllFolders = async (req, res, next) => {
+  return await findFolders({
+    user_id: req.user._id,
+    isTrashed: false,
+  });
+};
+
 exports.getFavoriteFolders = async (req, res, next) => {
   return await findFolders({
     user_id: req.user._id,

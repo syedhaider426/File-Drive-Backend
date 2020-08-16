@@ -199,6 +199,14 @@ exports.getFiles = async (req, res, next) => {
   });
 };
 
+exports.getAllFiles = async (req, res, next) => {
+  //Return the files for the specific user
+  return await findFiles({
+    "metadata.user_id": req.user._id,
+    "metadata.isTrashed": false,
+  });
+};
+
 exports.getTrashFiles = async (req, res, next) => {
   //Return the files for the specific user
   return await findFiles({

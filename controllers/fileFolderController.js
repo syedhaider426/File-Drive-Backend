@@ -13,6 +13,7 @@ const {
   getFolderHierarchy,
   getFolderDetails,
   moveFolders,
+  getAllFolders,
 } = require("./folderController");
 
 const {
@@ -28,6 +29,7 @@ const {
   unfavoriteFiles,
   homeUnfavoriteFiles,
   moveFiles,
+  getAllFiles,
 } = require("./fileController");
 
 exports.getFilesAndFolders = async (req, res, next) => {
@@ -54,6 +56,19 @@ exports.getFilesAndFolders = async (req, res, next) => {
     moveTitleFolder,
     success: {
       message: "Files/folders were succesfully retrieved",
+    },
+  });
+};
+
+exports.getAllFilesAndFolders = async (req, res, next) => {
+  // Finds the files that the user favorited
+  const files = await getAllFiles(req, res, next);
+  const folders = await getAllFolders(req, res, next);
+  return res.json({
+    files,
+    folders,
+    success: {
+      message: "Favorited Files/folders were succesfully retrieved",
     },
   });
 };
