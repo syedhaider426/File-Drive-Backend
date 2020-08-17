@@ -118,7 +118,7 @@ exports.confirmUser = async (req, res, next) => {
 
     // On successful update, send the 'success' response to the client
     if (verifiedUser.result.nModified === 1) {
-      res.redirect("/confirmed-registration");
+      res.redirect("/registration-confirmation");
       // return res.json({
       //   sucess: {
       //     message: "You have succesfully registered your account.",
