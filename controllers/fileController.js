@@ -132,19 +132,20 @@ exports.copyFiles = async (req, res, next) => {
       filename: req.body.selectedFiles[i].filename,
     });
   }
-  const options = {
-    metadata: {
-      user_id: req.user._id,
-      isTrashed: false,
-      folder_id: returnObjectID(req.params.folder),
-      isFavorited: false,
-    },
-  };
   const gfs = Connection.gfs;
   const promises = [];
   /* https://dev.to/cdanielsen/wrap-your-streams-with-promises-for-fun-and-profit-51ka */
   for (let i = 0; i < files.length; ++i) {
     let promise = new Promise((resolve, reject) => {
+      const options = {
+        metadata: {
+          user_id: req.user._id,
+          isTrashed: false,
+          folder_id: returnObjectID(req.params.folder),
+          isFavorited: false,
+        },
+        contentType: req.body.selectedFiles[i].contentType,
+      };
       // Downloads the file from the GridFSBucket
       const downloadStream = gfs.openDownloadStream(
         returnObjectID(files[i]._id)
