@@ -314,7 +314,7 @@ exports.undoFavoriteFolders = async (req, res, next) => {
 exports.moveFolders = async (req, res, next) => {
   const folders = generateFolderArray(req);
   if (folders.length > 0) {
-    const result = await updateFolders(
+    await updateFolders(
       {
         _id: { $in: folders },
       },
@@ -324,7 +324,6 @@ exports.moveFolders = async (req, res, next) => {
         },
       }
     );
-
     return;
   }
 };
