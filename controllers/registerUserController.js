@@ -65,20 +65,18 @@ exports.register = async (req, res, next) => {
     const mailOptions = {
       from: keys.email,
       to: req.body.email,
-      subject: "Account Verification - GDrive Clone",
+      subject: "Account Verification - F-Drive",
       text:
         "Hello,\n\n" +
-        "Please verify your account by clicking the link: \nhttp://" +
+        "Please verify your account by clicking the link: \nhttps://" +
         req.headers.host +
-        "/confirmRegistration?token=" +
+        "/registration-confirmation?token=" +
         token +
         "\n\n" +
         "If you have received this email by mistake, simply delete it.",
     };
-
     // Send email via SendGrid
     await sgMail.send(mailOptions);
-
     // Return success status back to client
     return res.status(201).json({
       success: {
@@ -119,12 +117,14 @@ exports.confirmUser = async (req, res, next) => {
     );
 
     // On successful update, send the 'success' response to the client
-    if (verifiedUser.result.nModified === 1)
-      return res.json({
-        sucess: {
-          message: "You have succesfully registered your account.",
-        },
-      });
+    if (verifiedUser.result.nModified === 1) {
+      res.redirect("/confirmed-registration");
+      // return res.json({
+      //   sucess: {
+      //     message: "You have succesfully registered your account.",
+      //   },
+      // });
+    }
     // This error occurs when a user had a confirmation email sent to their account, but never registered a account.
     else
       return res.status(404).json({
@@ -185,12 +185,12 @@ exports.resendVerificationEmail = async (req, res, next) => {
     const mailOptions = {
       from: keys.email,
       to: req.body.email,
-      subject: "Account Verification - GDrive Clone",
+      subject: "Account Verification - F-Drive",
       text:
         "Hello,\n\n" +
-        "Please verify your account by clicking the link: \nhttp://" +
+        "Please verify your account by clicking the link: \nhttps://" +
         req.headers.host +
-        "/confirmRegistration?token=" +
+        "/registration-confirmation?token=" +
         token +
         "\n\n" +
         "If you have received this email by mistake, simply delete it.",

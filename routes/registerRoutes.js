@@ -15,8 +15,8 @@ module.exports = (app) => {
   // @route POST - Registers a user if they are not authenticated.
   app.post("/api/users/registration", checkNotAuthenticated, register);
 
-  // @route PATCH - Verifies the user's email if they provide the token that is sent to their email.
-  app.patch("/api/users/registration-confirmation", confirmUser);
+  // @route GET - Verifies the user's email if they provide the token that is sent to their email.
+  app.get("/registration-confirmation", confirmUser);
 
   // @route POST - Resends an confirmation email to user if they did not their confirm their account.
   app.post("/api/users/confirmation", asyncHandler(resendVerificationEmail));

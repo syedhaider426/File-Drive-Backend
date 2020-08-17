@@ -43,35 +43,35 @@ app.use((error, req, res, next) => {
 //Server listens on the designated port and logs it to the consolee
 app.listen(keys.port, () => console.log(`Connected on port ${keys.port}`));
 
-// // If there is an uncaught exception, send error stack to email
-// process.on("uncaughtException", async (err) => {
-//   // Set mail content for SendGrid to send
-//   const mailOptions = {
-//     from: keys.email,
-//     to: keys.email,
-//     subject: "****ERROR WITH****** - GDrive Clone",
-//     text: new Date().toUTCString() + `${err.message}` + "\n\n" + err.stack,
-//   };
+// If there is an uncaught exception, send error stack to email
+process.on("uncaughtException", async (err) => {
+  // Set mail content for SendGrid to send
+  const mailOptions = {
+    from: keys.email,
+    to: keys.email,
+    subject: "****CRITICAL ERROR WITH****** - F-Drive",
+    text: new Date().toUTCString() + `${err.message}` + "\n\n" + err.stack,
+  };
 
-//   // Send email via SendGrid
-//   await sgMail.send(mailOptions);
+  // Send email via SendGrid
+  await sgMail.send(mailOptions);
 
-//   // Close instance (which will be restarted by PM2 after it is closed)
-//   process.exit(1);
-// });
+  // Close instance (which will be restarted by PM2 after it is closed)
+  process.exit(1);
+});
 
-// // If there is an unhandled rejection, send error stack to email
-// process.on("unhandledRejection", async (err) => {
-//   // Set mail content for SendGrid to send
-//   const mailOptions = {
-//     from: keys.email,
-//     to: keys.email,
-//     subject: "****ERROR WITH****** - GDrive Clone",
-//     text: new Date().toUTCString() + `${err.message}` + "\n\n" + err.stack,
-//   };
+// If there is an unhandled rejection, send error stack to email
+process.on("unhandledRejection", async (err) => {
+  // Set mail content for SendGrid to send
+  const mailOptions = {
+    from: keys.email,
+    to: keys.email,
+    subject: "****CRITICAL ERROR WITH****** - F-Drive",
+    text: new Date().toUTCString() + `${err.message}` + "\n\n" + err.stack,
+  };
 
-//   // Send email via SendGrid
-//   await sgMail.send(mailOptions);
+  // Send email via SendGrid
+  await sgMail.send(mailOptions);
 
-//   next(error);
-// });
+  next(error);
+});
