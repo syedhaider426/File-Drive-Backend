@@ -33,7 +33,7 @@ class Connection {
 Connection.db = null;
 
 //Sets the connection uri
-Connection.url = "mongodb://localhost:27017";
+Connection.url = key.connection;
 
 //Sets the options for the database
 Connection.options = {
