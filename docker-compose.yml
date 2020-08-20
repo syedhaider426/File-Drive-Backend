@@ -4,6 +4,8 @@ services:
     build: .
     ports:
       - "8080:8080"
+    env_file:
+      - web-variables.env
     depends_on:
       - mongo
   mongo:
