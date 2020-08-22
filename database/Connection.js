@@ -33,7 +33,9 @@ class Connection {
 Connection.db = null;
 
 //Sets the connection uri
-Connection.url = key.connection;
+let uri = "localhost";
+if (process.env.NODE_ENV === "production") uri = "mongo";
+Connection.url = `mongodb://${uri}:27017`;
 
 //Sets the options for the database
 Connection.options = {

@@ -126,17 +126,19 @@ exports.forgotPassword = async (req, res, next) => {
       expiresIn: "1h",
     });
 
+    let url = "http://localhost:3000";
+    if (process.env.NODE_ENV === "production") url = "https://file-drive.xyz";
+
     // Set mail content for SendGrid to send
     let mailOptions = {
       from: keys.email,
       to: req.body.email,
-      subject: "Forgotten Password - GDrive Clone",
+      subject: "Forgotten Password - F-Drive",
       text:
         "Hello,\n\n" +
-        "Please reset your password by clicking the link: \nhttp://" +
-        req.headers.host +
+        `Please reset your password by clicking the link: \n${url}` +
         "/newPassword?token=" +
-        token.token +
+        token +
         "\n",
     };
 
@@ -155,7 +157,7 @@ exports.forgotPassword = async (req, res, next) => {
       return res.status(404).json({
         error: {
           message:
-            "There was an issue sending a new confirmation mail. Please try again.",
+            "There was an issue sending a reset password email. Please try again.",
         },
       });
     else next(err);

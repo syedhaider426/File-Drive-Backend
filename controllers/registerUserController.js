@@ -8,6 +8,9 @@ sgMail.setApiKey(keys.sendgrid_api_key);
 const Connection = require("../database/Connection");
 const users = Connection.db.collection("users");
 
+let url = "http://localhost:3000";
+if (process.env.NODE_ENV === "production") url = "https://file-drive.xyz";
+
 exports.register = async (req, res, next) => {
   //Create JOI schema
   const schema = Joi.object({
@@ -68,9 +71,8 @@ exports.register = async (req, res, next) => {
       subject: "Account Verification - F-Drive",
       text:
         "Hello,\n\n" +
-        "Please verify your account by clicking the link: \nhttps://" +
-        req.headers.host +
-        "/registration-confirmation?token=" +
+        `Please verify your account by clicking the link: \n${url}` +
+        "/confirmation?token=" +
         token +
         "\n\n" +
         "If you have received this email by mistake, simply delete it.",
@@ -109,21 +111,18 @@ exports.confirmUser = async (req, res, next) => {
             "There was an error confirming your email. Please try again.",
         },
       });
-
     // Verify the user by updating isVerified field in the db
     const verifiedUser = await users.updateOne(
       { _id: returnObjectID(user._id) },
       { $set: { isVerified: true } }
     );
-
     // On successful update, send the 'success' response to the client
     if (verifiedUser.result.nModified === 1) {
-      res.redirect("/registration-confirmation");
-      // return res.json({
-      //   sucess: {
-      //     message: "You have succesfully registered your account.",
-      //   },
-      // });
+      return res.json({
+        sucess: {
+          message: "You have succesfully registered your account.",
+        },
+      });
     }
     // This error occurs when a user had a confirmation email sent to their account, but never registered a account.
     else
@@ -188,9 +187,8 @@ exports.resendVerificationEmail = async (req, res, next) => {
       subject: "Account Verification - F-Drive",
       text:
         "Hello,\n\n" +
-        "Please verify your account by clicking the link: \nhttps://" +
-        req.headers.host +
-        "/registration-confirmation?token=" +
+        `Please verify your account by clicking the link: \n${url}` +
+        "/confirmation?token=" +
         token +
         "\n\n" +
         "If you have received this email by mistake, simply delete it.",
