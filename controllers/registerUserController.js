@@ -60,7 +60,7 @@ exports.register = async (req, res, next) => {
       { _id: newUser.insertedId },
       keys.jwtPrivateKey,
       {
-        expiresIn: "1h",
+        expiresIn: "12h",
       }
     );
 
@@ -103,14 +103,6 @@ exports.confirmUser = async (req, res, next) => {
     // Verify token
     const user = await jwt.verify(req.query.token, keys.jwtPrivateKey);
 
-    // Throw error if token expired or is invalid
-    if (!user)
-      return res.status(400).json({
-        error: {
-          message:
-            "There was an error confirming your email. Please try again.",
-        },
-      });
     // Verify the user by updating isVerified field in the db
     const verifiedUser = await users.updateOne(
       { _id: returnObjectID(user._id) },
@@ -134,14 +126,21 @@ exports.confirmUser = async (req, res, next) => {
       });
   } catch (err) {
     // If Mongo is unable to verify the user, return an error
-    if (err.name === "MongoError")
+    if (err.name === "MongoError") {
       return res.status(404).json({
         error: {
           message:
             "Account could not be confirmed at this time. Please try again later.",
         },
       });
-    else next(err);
+    } else if (err.name === "JsonWebTokenError") {
+      return res.status(409).json({
+        error: {
+          message:
+            "Invalid/expired token was provided. A new verification email must be sent",
+        },
+      });
+    } else next(err);
   }
 };
 
