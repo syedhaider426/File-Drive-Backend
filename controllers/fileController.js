@@ -254,7 +254,7 @@ exports.trashFiles = async (req) => {
   if (files.length === 0) return;
   /*
    * Trash the files
-   * **NOTE**: trashedAt is a new field that gets added to each document. It has an index on it that
+   * *NOTE*: trashedAt is a new field that gets added to each document. It has an index on it that
    * will expire after 30 days, ther
    * efore, deleting the folder and file
    */
