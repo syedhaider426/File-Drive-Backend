@@ -168,8 +168,9 @@ exports.resendVerificationEmail = async (req, res, next) => {
 
     // If the user is already verified, notify them to sign in
     if (user.isVerified)
-      return res.json({
+      return res.status(201).json({
         success: {
+          isVerified: true,
           message: "You have already confirmed your account. Please sign in.",
         },
       });
@@ -199,6 +200,7 @@ exports.resendVerificationEmail = async (req, res, next) => {
     // Return success status back to client
     return res.status(201).json({
       success: {
+        isVerified: false,
         message: "Please check your email to confirm your account.",
       },
     });
