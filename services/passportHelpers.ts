@@ -12,7 +12,7 @@ export const user = {
    * Retrieves the userid from the req.session.passport.user object
    * and stores in req.user
    */
-  async deserialize(id: any, done: any) {
+  async deserialize(id: string, done: any) {
     try {
       //Gets the current user
       const validUser = await getUserById(id);
