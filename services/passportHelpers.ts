@@ -1,13 +1,10 @@
-const bcrypt = require("bcryptjs"); //Library used to hash/decrypt passwords
-const Joi = require("@hapi/joi"); //Library used to validate inputs
-const {
-  getUserById,
-  getUserByEmail,
-} = require("../controllers/accountController");
+import bcrypt from "bcryptjs"; //Library used to hash/decrypt passwords
+import Joi, { ObjectSchema, ValidationResult } from "@hapi/joi"; //Library used to validate inputs
+import { getUserById, getUserByEmail } from "../controllers/accountController";
 
-const user = {
+export const user = {
   //Stores the id in the req.session.passport.user object
-  serialize(user, done) {
+  serialize(user: any, done: any) {
     done(null, user._id);
   },
 
@@ -15,7 +12,7 @@ const user = {
    * Retrieves the userid from the req.session.passport.user object
    * and stores in req.user
    */
-  async deserialize(id, done) {
+  async deserialize(id: any, done: any) {
     try {
       //Gets the current user
       const validUser = await getUserById(id);
@@ -26,9 +23,9 @@ const user = {
   },
 
   //Logs the user in if they provide valid email and corresponding password
-  async authenticate(email, password, done) {
+  async authenticate(email: string, password: string, done: any) {
     //Declares schema for inputs
-    const schema = Joi.object({
+    const schema: ObjectSchema<any> = Joi.object({
       email: Joi.string().email().required().messages({
         "string.empty": `Email cannot be empty.`,
         "string.email": `Please provide a proper email address.`,
@@ -39,7 +36,7 @@ const user = {
     });
     // Validate user inputs
 
-    const validation = await schema.validate({
+    const validation: ValidationResult = await schema.validate({
       email,
       password,
     });
@@ -67,5 +64,3 @@ const user = {
     }
   },
 };
-
-module.exports = user;

@@ -1,6 +1,6 @@
-const { checkAuthenticated } = require("../middlewares/requireLogin");
-
-const {
+import { checkAuthenticated } from "../middlewares/requireLogin";
+import { Application } from "express";
+import {
   unfavoriteFilesAndFolders,
   getFilesAndFolders,
   getFavoriteFilesAndFolders,
@@ -16,13 +16,13 @@ const {
   deleteAll,
   restoreAll,
   moveFilesAndFolders,
-} = require("../controllers/fileFolderController");
+} from "../controllers/fileFolderController";
 
 /**
  * This module focuses on the endpoints related to uploading, moving, deleting, and renaming files.
  * @param {*} app
  */
-module.exports = (app) => {
+module.exports = (app: Application) => {
   // @route GET - Gets files and folders for in the 'Home'/'My Drive' directory for specific user
   app.get("/api/drive/home", checkAuthenticated, getFilesAndFolders);
 

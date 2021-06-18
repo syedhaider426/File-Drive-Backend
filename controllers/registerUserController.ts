@@ -1,19 +1,25 @@
-const bcrypt = require("bcryptjs");
-const Joi = require("@hapi/joi");
-const jwt = require("jsonwebtoken");
-const returnObjectID = require("../database/returnObjectID");
-const keys = require("../config/keys");
-const sgMail = require("@sendgrid/mail");
-sgMail.setApiKey(keys.sendgrid_api_key);
-const Connection = require("../database/Connection");
-const users = Connection.db.collection("users");
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import Joi, { ObjectSchema, ValidationResult } from "@hapi/joi";
+import returnObjectID from "../database/returnObjectID";
+import { keys } from "../config/keys";
+import sgMail from "@sendgrid/mail";
+import Connection from "../database/Connection";
+import { Request, Response, NextFunction } from "express";
+import { UpdateWriteOpResult } from "mongodb";
 
+sgMail.setApiKey(keys.sendgrid_api_key);
+const users = Connection.db.collection("users");
 let url = "http://localhost:3000";
 if (process.env.NODE_ENV === "production") url = "https://file-drive.xyz";
 
-exports.register = async (req, res, next) => {
+export const register = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   //Create JOI schema
-  const schema = Joi.object({
+  const schema: ObjectSchema<any> = Joi.object({
     email: Joi.string().email().required().messages({
       "string.email": `Please provide a proper email address.`,
       "string.empty": `Email cannot be empty.`,
@@ -27,7 +33,7 @@ exports.register = async (req, res, next) => {
   });
 
   // Validate user inputs
-  const validation = await schema.validate(
+  const validation: ValidationResult = await schema.validate(
     {
       email: req.body.email,
       password: req.body.password,
@@ -46,17 +52,17 @@ exports.register = async (req, res, next) => {
 
   try {
     // Hash the inputted password
-    const password = await bcrypt.hash(req.body.password, 10);
+    const password: string = await bcrypt.hash(req.body.password, 10);
 
     // Create new user
-    const newUser = await users.insertOne({
+    const newUser: any = await users.insertOne({
       email: req.body.email,
       password: password,
       isVerified: false,
     });
 
     // Create JWT
-    const token = await jwt.sign(
+    const token: String = await jwt.sign(
       { _id: newUser.insertedId },
       keys.jwtPrivateKey,
       {
@@ -65,7 +71,12 @@ exports.register = async (req, res, next) => {
     );
 
     // Set details for email for SendGrid to send
-    const mailOptions = {
+    const mailOptions: {
+      from: string;
+      to: any;
+      subject: string;
+      text: string;
+    } = {
       from: keys.email,
       to: req.body.email,
       subject: "Account Verification - F-Drive",
@@ -96,15 +107,23 @@ exports.register = async (req, res, next) => {
       });
     else next(err);
   }
+  return;
 };
 
-exports.confirmUser = async (req, res, next) => {
+export const confirmUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   try {
     // Verify token
-    const user = await jwt.verify(req.query.token, keys.jwtPrivateKey);
+    const user = (await jwt.verify(
+      (req as any).query.token,
+      keys.jwtPrivateKey
+    )) as { [key: string]: any; _id: string };
 
     // Verify the user by updating isVerified field in the db
-    const verifiedUser = await users.updateOne(
+    const verifiedUser: UpdateWriteOpResult = await users.updateOne(
       { _id: returnObjectID(user._id) },
       { $set: { isVerified: true } }
     );
@@ -116,14 +135,6 @@ exports.confirmUser = async (req, res, next) => {
         },
       });
     }
-    // This error occurs when a user had a confirmation email sent to their account, but never registered a account.
-    else
-      return res.status(404).json({
-        error: {
-          message:
-            "Account could not be confirmed at this time. Please try again later.",
-        },
-      });
   } catch (err) {
     // If Mongo is unable to verify the user, return an error
     if (err.name === "MongoError") {
@@ -142,18 +153,31 @@ exports.confirmUser = async (req, res, next) => {
       });
     } else next(err);
   }
+  // This error occurs when a user had a confirmation email sent to their account, but never registered a account.
+  return res.status(404).json({
+    error: {
+      message:
+        "Account could not be confirmed at this time. Please try again later.",
+    },
+  });
 };
 
-exports.resendVerificationEmail = async (req, res, next) => {
+export const resendVerificationEmail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Create JOI Schema
-  const schema = Joi.object({
+  const schema: ObjectSchema<any> = Joi.object({
     email: Joi.string().email().required().messages({
       "string.email": `Please provide a proper email address.`,
       "any.required": `Email cannot be empty.`,
     }),
   });
   // Validate user inputs
-  const validation = await schema.validate({ email: req.body.email });
+  const validation: ValidationResult = await schema.validate({
+    email: req.body.email,
+  });
   // Return error if any inputs do not satisfy the schema
   if (validation.error)
     return res.status(400).json({
@@ -164,7 +188,7 @@ exports.resendVerificationEmail = async (req, res, next) => {
 
   try {
     // Finds user based off email
-    const user = await users.findOne({ email: req.body.email });
+    const user: any = await users.findOne({ email: req.body.email });
 
     // If the user is already verified, notify them to sign in
     if (user.isVerified)
@@ -176,12 +200,21 @@ exports.resendVerificationEmail = async (req, res, next) => {
       });
 
     // Generate JWT
-    const token = await jwt.sign({ _id: user._id || "" }, keys.jwtPrivateKey, {
-      expiresIn: "1h",
-    });
+    const token: string = await jwt.sign(
+      { _id: user._id || "" },
+      keys.jwtPrivateKey,
+      {
+        expiresIn: "1h",
+      }
+    );
 
     // Set mail content for SendGrid to send
-    const mailOptions = {
+    const mailOptions: {
+      from: string;
+      to: any;
+      subject: string;
+      text: string;
+    } = {
       from: keys.email,
       to: req.body.email,
       subject: "Account Verification - F-Drive",

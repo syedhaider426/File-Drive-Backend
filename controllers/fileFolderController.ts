@@ -1,4 +1,6 @@
-const {
+import { Request, Response, NextFunction } from "express";
+
+import {
   trashFolders,
   deleteFolders,
   restoreFolders,
@@ -14,9 +16,9 @@ const {
   getFolderDetails,
   moveFolders,
   getAllFolders,
-} = require("./folderController");
+} from "./folderController";
 
-const {
+import {
   getFiles,
   trashFiles,
   deleteFiles,
@@ -30,12 +32,16 @@ const {
   homeUnfavoriteFiles,
   moveFiles,
   getAllFiles,
-} = require("./fileController");
+} from "./fileController";
 
-exports.getFilesAndFolders = async (req, res, next) => {
+export const getFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   //Return the files for the specific user
-  const files = await getFiles(req, res, next);
-  const folders = await getFolders(req, res, next);
+  const files = await getFiles(req);
+  const folders = await getFolders(req);
   let folderPath = [];
   //Used for tracking the hierarchy of folders in Home
   if (req.params.folder !== undefined)
@@ -60,7 +66,11 @@ exports.getFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.getAllFilesAndFolders = async (req, res, next) => {
+export const getAllFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Finds the files that the user favorited
   const files = await getAllFiles(req, res, next);
   const folders = await getAllFolders(req, res, next);
@@ -73,7 +83,11 @@ exports.getAllFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.getFavoriteFilesAndFolders = async (req, res, next) => {
+export const getFavoriteFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Finds the files that the user favorited
   const files = await getFavoriteFiles(req, res, next);
   const folders = await getFavoriteFolders(req, res, next);
@@ -87,7 +101,11 @@ exports.getFavoriteFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.getTrashFilesAndFolders = async (req, res, next) => {
+export const getTrashFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Return the files that are in the user's trash
   const files = await getTrashFiles(req, res, next);
   const folders = await getTrashFolders(req, res, next);
@@ -100,9 +118,13 @@ exports.getTrashFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.trashFilesAndFolders = async (req, res, next) => {
-  await trashFiles(req, res, next);
-  await trashFolders(req, res, next);
+export const trashFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  await trashFiles(req);
+  await trashFolders(req);
   return res.json({
     success: {
       message: "Files/folders were succesfully trashed",
@@ -110,7 +132,11 @@ exports.trashFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.deleteFilesAndFolders = async (req, res, next) => {
+export const deleteFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await deleteFiles(req, res, next);
   await deleteFolders(req, res, next);
   return res.json({
@@ -120,7 +146,11 @@ exports.deleteFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.restoreFilesAndFolders = async (req, res, next) => {
+export const restoreFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await restoreFiles(req, res, next);
   await restoreFolders(req, res, next);
   return res.json({
@@ -128,7 +158,11 @@ exports.restoreFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.favoriteFilesAndFolders = async (req, res, next) => {
+export const favoriteFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await favoriteFiles(req, res, next);
   await favoriteFolders(req, res, next);
   return res.json({
@@ -136,7 +170,11 @@ exports.favoriteFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.unfavoriteFilesAndFolders = async (req, res, next) => {
+export const unfavoriteFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await unfavoriteFiles(req, res, next);
   await unfavoriteFolders(req, res, next);
   return res.json({
@@ -144,14 +182,22 @@ exports.unfavoriteFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.undoTrashFilesAndFolders = async (req, res, next) => {
+export const undoTrashFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await undoTrashFiles(req, res, next);
   await undoTrashFolders(req, res, next);
   return res.json({
     sucess: { message: "Files/folders were successfully restored" },
   });
 };
-exports.undoFavoriteFilesAndFolders = async (req, res, next) => {
+export const undoFavoriteFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await undoFavoriteFiles(req, res, next);
   await undoFavoriteFolders(req, res, next);
   return res.json({
@@ -159,7 +205,11 @@ exports.undoFavoriteFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.homeUnfavoriteFilesAndFolders = async (req, res, next) => {
+export const homeUnfavoriteFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await homeUnfavoriteFiles(req, res, next);
   await homeUnfavoriteFolders(req, res, next);
   return res.json({
@@ -167,7 +217,11 @@ exports.homeUnfavoriteFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.moveFilesAndFolders = async (req, res, next) => {
+export const moveFilesAndFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   await moveFiles(req, res, next);
   await moveFolders(req, res, next);
   return res.json({
@@ -175,7 +229,11 @@ exports.moveFilesAndFolders = async (req, res, next) => {
   });
 };
 
-exports.deleteAll = async (req, res, next) => {
+export const deleteAll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const files = await getTrashFiles(req, res, next);
   const folders = await getTrashFolders(req, res, next);
   req.body.selectedFiles = files;
@@ -189,7 +247,11 @@ exports.deleteAll = async (req, res, next) => {
   });
 };
 
-exports.restoreAll = async (req, res, next) => {
+export const restoreAll = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const files = await getTrashFiles(req, res, next);
   const folders = await getTrashFolders(req, res, next);
   req.body.selectedFiles = files;

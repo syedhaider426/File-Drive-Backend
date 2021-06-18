@@ -1,16 +1,16 @@
-const { checkAuthenticated } = require("../middlewares/requireLogin");
-
-const {
+import { checkAuthenticated } from "../middlewares/requireLogin";
+import {
   resetPassword,
   forgotPassword,
   newPassword,
-} = require("../controllers/accountController");
+} from "../controllers/accountController";
+import { Application } from "express";
 
 /**
  * This module focuses on the endpoints related to user settings (email,password).
  * @param {*} app
  */
-module.exports = (app) => {
+module.exports = (app: Application) => {
   // @route PATCH - Resets the user's password if they are authenticated
   app.patch("/api/users/password-reset", checkAuthenticated, resetPassword);
 

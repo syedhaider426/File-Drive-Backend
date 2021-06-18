@@ -79,3 +79,4 @@ typings/
 
 jest-puppeteer.config.js
 jest-puppeteer.config.js
+config/dev.ts

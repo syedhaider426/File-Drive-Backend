@@ -1,8 +1,9 @@
-const helmet = require("helmet");
-const session = require("express-session");
-const passportKey = require("../config/keys").passportKey;
-const passport = require("passport");
-const initializePassport = require("../services/passportConfig");
+import helmet from "helmet";
+import session from "express-session";
+import passport from "passport";
+import { keys } from "../config/keys";
+import { initializePassport } from "../services/passportConfig";
+import { Application, RequestHandler } from "express";
 
 /**
  * This module configures helmet, express-session, and passport to Express middleware stack.
@@ -10,13 +11,13 @@ const initializePassport = require("../services/passportConfig");
  *
  * @param {*} app - Express object that is used to add other modules onto its middleware stack
  */
-module.exports = function (app) {
-  app.use(helmet()); //Sets secure http headers
+module.exports = function (app: Application) {
+  app.use(helmet() as RequestHandler); //Sets secure http headers
 
   //Used to initialize custom session objects
   app.use(
     session({
-      secret: passportKey,
+      secret: keys.passportKey,
       resave: false,
       saveUninitialized: true,
     })

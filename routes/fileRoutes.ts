@@ -1,18 +1,19 @@
-const { checkAuthenticated } = require("../middlewares/requireLogin");
-const {
+import { checkAuthenticated } from "../middlewares/requireLogin";
+import {
   uploadFile,
   renameFile,
   copyFiles,
   undoCopy,
   viewFile,
-} = require("../controllers/fileController");
-const { asyncHandler } = require("../services/asyncHandler");
+} from "../controllers/fileController";
+import { Application } from "express";
+import { asyncHandler } from "../services/asyncHandler";
 
 /**
  * This module focuses on the endpoints related to uploading, moving, deleting, and renaming files.
  * @param {*} app
  */
-module.exports = (app) => {
+module.exports = (app: Application) => {
   // @route GET - Gets a specific file and returns the contents of the file to the user
   app.get("/api/files/:file", checkAuthenticated, viewFile);
 

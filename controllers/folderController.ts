@@ -1,20 +1,25 @@
-const Connection = require("../database/Connection");
-const Joi = require("@hapi/joi");
-const returnObjectID = require("../database/returnObjectID");
-const {
+import { Request, Response, NextFunction } from "express";
+import Joi, { ObjectSchema, ValidationResult } from "@hapi/joi";
+import Connection from "../database/Connection";
+import returnObjectID from "../database/returnObjectID";
+import { ObjectID } from "mongodb";
+import {
   findFolders,
   updateFolders,
   createFolder,
   deleteFolder,
-} = require("../services/folders");
+} from "../services/folders";
+import { findFiles, updateFiles } from "../services/files";
 
-const { findFiles, updateFiles } = require("../services/files");
+interface IUser extends Request {
+  user: { _id: string };
+}
 
-generateFolderArray = (req) => {
-  const folders = [];
+const generateFolderArray = (req: Request): (string | ObjectID)[] => {
+  const folders: (string | ObjectID)[] = [];
   if (req.body.selectedFolders.length > 0)
-    req.body.selectedFolders.forEach((folder) => {
-      let id;
+    req.body.selectedFolders.forEach((folder: { [key: string]: any }) => {
+      let id: string;
       if (folder.id) id = folder.id;
       else id = folder._id; //only used when deleting all files
       folders.push(returnObjectID(id));
@@ -23,12 +28,16 @@ generateFolderArray = (req) => {
   return folders;
 };
 
-exports.getFolderDetails = async (id) => {
+export const getFolderDetails = async (id: string): Promise<any> => {
   return await findFolders({ _id: returnObjectID(id) });
 };
 
-exports.getFolderHierarchy = async (req, res, next) => {
-  const result = await Connection.db
+export const getFolderHierarchy = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
+  const result: any = await Connection.db
     .collection("folders")
     .aggregate([
       { $match: { _id: returnObjectID(req.params.folder) } }, // Only look at folder
@@ -43,9 +52,9 @@ exports.getFolderHierarchy = async (req, res, next) => {
       },
     ])
     .toArray();
-  const folders = [];
-  const f = result[0];
-  for (let i = 0; i < f.connections.length; ++i) {
+  const folders: { _id: string; foldername: string }[] = [];
+  const f: any[any] = result[0];
+  for (let i: number = 0; i < f.connections.length; ++i) {
     folders.push({
       _id: f.connections[i]._id,
       foldername: f.connections[i].foldername,
@@ -55,46 +64,64 @@ exports.getFolderHierarchy = async (req, res, next) => {
   return folders;
 };
 
-exports.getFolders = async (req, res, next) => {
-  return await findFolders({
-    user_id: req.user._id,
+//https://stackoverflow.com/questions/52694418/error-type-is-not-a-valid-async-function-return-type-in-es5-es3-because-it-does
+export const getFolders = async (req: Request): Promise<any> => {
+  const result = await findFolders({
+    user_id: (req as IUser).user._id,
     parent_id: returnObjectID(req.params.folder),
     isTrashed: false,
   });
+  return result;
 };
 
-exports.getAllFolders = async (req, res, next) => {
+export const getAllFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   return await findFolders({
-    user_id: req.user._id,
+    user_id: (req as IUser).user._id,
     isTrashed: false,
   });
 };
 
-exports.getFavoriteFolders = async (req, res, next) => {
+export const getFavoriteFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   return await findFolders({
-    user_id: req.user._id,
+    user_id: (req as IUser).user._id,
     isTrashed: false,
     isFavorited: true,
   });
 };
 
-exports.getTrashFolders = async (req, res, next) => {
+export const getTrashFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   return await findFolders({
-    user_id: req.user._id,
+    user_id: (req as IUser).user._id,
     isTrashed: true,
   });
 };
 
-exports.createFolder = async (req, res, next) => {
+export const create_Folder = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Create JOI Schema
-  const schema = Joi.object({
+  const schema: ObjectSchema<any> = Joi.object({
     folder: Joi.string().required().messages({
       "string.empty": `Folder cannot be empty.`,
     }),
   });
 
   // Validate user inputs
-  const validation = await schema.validate({
+  const validation: ValidationResult = await schema.validate({
     folder: req.body.folder,
   });
 
@@ -106,9 +133,17 @@ exports.createFolder = async (req, res, next) => {
       },
     });
 
-  const folder = {
+  const folder: {
+    foldername: any;
+    user_id: string;
+    parent_id: string | ObjectID;
+    description: string;
+    createdOn: Date;
+    isTrashed: boolean;
+    isFavorited: boolean;
+  } = {
     foldername: req.body.folder.trim(),
-    user_id: req.user._id,
+    user_id: (req as IUser).user._id,
     parent_id: returnObjectID(req.params.folder),
     description: "",
     createdOn: new Date(),
@@ -117,27 +152,36 @@ exports.createFolder = async (req, res, next) => {
   };
 
   // Creates folder
-  const createdFolder = await createFolder(folder);
+  const createdFolder: any = await createFolder(folder);
   // If folder was created succesfully, return a success response back to client
-  if (createdFolder.insertedId) {
-    return res.status(201).json({
-      success: {
-        message: "Folder successfully created",
+  if (createdFolder.insertedId.length < 0) {
+    return res.status(400).json({
+      error: {
+        message: "Folder not created",
       },
-      newFolder: createdFolder.ops,
     });
   }
+  return res.status(201).json({
+    success: {
+      message: "Folder successfully created",
+    },
+    newFolder: createdFolder.ops,
+  });
 };
 
-exports.renameFolder = async (req, res, next) => {
+export const renameFolder = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Create JOI Schema
-  const schema = Joi.object({
+  const schema: ObjectSchema<any> = Joi.object({
     folder: Joi.string().required().messages({
       "string.empty": `Folder cannot be empty.`,
     }),
   });
   // Validate user inputs
-  const validation = await schema.validate({
+  const validation: ValidationResult = await schema.validate({
     folder: req.body.newName,
   });
 
@@ -149,7 +193,7 @@ exports.renameFolder = async (req, res, next) => {
       },
     });
   // Updates the folder with the new folder name
-  const renamedFolderResult = await updateFolders(
+  const renamedFolderResult: any = await updateFolders(
     {
       _id: returnObjectID(req.body.id),
     },
@@ -165,22 +209,33 @@ exports.renameFolder = async (req, res, next) => {
       },
     });
   }
+  return res.status(400).json({
+    error: {
+      message: "Folder was not renamed succesfully",
+    },
+  });
 };
 
-exports.deleteFolders = async (req, res, next) => {
+export const deleteFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Folders represent an array of folders that will be permanently deleted
-  const folders = generateFolderArray(req);
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
 
   // Find the files that are in the specified folder
-  const files = await findFiles({
+  const files: any = await findFiles({
     "metadata.folder_id": { $in: folders },
   });
 
   // Deletes the files that are in fs.files and fs.chunks
-  const deletedFilesPromise = files.map(async (file) => {
-    await Connection.gfs.delete(file._id);
-  });
+  const deletedFilesPromise: any = files.map(
+    async (file: { _id: ObjectID }) => {
+      await Connection.gfs.delete(file._id);
+    }
+  );
 
   return Promise.all(deletedFilesPromise).then(async () => {
     // Delete all the selected folders
@@ -192,10 +247,10 @@ exports.deleteFolders = async (req, res, next) => {
   });
 };
 
-exports.trashFolders = async (req) => {
-  const folders = generateFolderArray(req);
+export const trashFolders = async (req: Request): Promise<any> => {
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
-  let trashedFolders = await updateFolders(
+  let trashedFolders: any = await updateFolders(
     {
       _id: { $in: folders },
     },
@@ -207,9 +262,13 @@ exports.trashFolders = async (req) => {
   if (trashedFolders.result.nModified > 0) return;
 };
 
-exports.restoreFolders = async (req, res, next) => {
+export const restoreFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Folders represent an array of folders that will be restored from the trash
-  const folders = generateFolderArray(req);
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
 
   /*
@@ -217,15 +276,15 @@ exports.restoreFolders = async (req, res, next) => {
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
    */
 
-  const restoredFolders = await updateFolders(
-    { user_id: req.user._id, _id: { $in: folders } },
+  const restoredFolders: any = await updateFolders(
+    { user_id: (req as IUser).user._id, _id: { $in: folders } },
     { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
   );
   if (restoredFolders.result.nModified > 0) {
     // Restore the files
-    const restoredFiles = await updateFiles(
+    const restoredFiles: any = await updateFiles(
       {
-        "metadata.user_id": req.user._id,
+        "metadata.user_id": (req as IUser).user._id,
         "metadata.folder_id": { $in: folders },
       },
       { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
@@ -236,9 +295,13 @@ exports.restoreFolders = async (req, res, next) => {
   }
 };
 
-exports.undoTrashFolders = async (req, res, next) => {
+export const undoTrashFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Folders represent an array of folders that will be restored from the trash
-  const folders = generateFolderArray(req);
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
 
   /*
@@ -246,15 +309,15 @@ exports.undoTrashFolders = async (req, res, next) => {
    * **NOTE**: trashedAt is a TTL index that expires after 30 days. The field is unset if the file/folder is restored.
    */
 
-  const restoredFolders = await updateFolders(
-    { user_id: req.user._id, _id: { $in: folders } },
+  const restoredFolders: any = await updateFolders(
+    { user_id: (req as IUser).user._id, _id: { $in: folders } },
     { $unset: { trashedAt: "" }, $set: { isTrashed: false } }
   );
   if (restoredFolders.result.nModified > 0) {
     // Restore the files
-    const restoredFiles = await updateFiles(
+    const restoredFiles: any = await updateFiles(
       {
-        "metadata.user_id": req.user._id,
+        "metadata.user_id": (req as IUser).user._id,
         "metadata.folder_id": { $in: folders },
       },
       { $unset: { trashedAt: "" }, $set: { "metadata.isTrashed": false } }
@@ -267,12 +330,16 @@ exports.undoTrashFolders = async (req, res, next) => {
   }
 };
 
-exports.favoriteFolders = async (req, res, next) => {
+export const favoriteFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Folders represent an array of folders that will be favorited
-  const folders = generateFolderArray(req);
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
   // Favorites the selected folders
-  const favoritedFolders = await updateFolders(
+  const favoritedFolders: any = await updateFolders(
     { _id: { $in: folders } },
     { $set: { isFavorited: true } }
   );
@@ -281,13 +348,17 @@ exports.favoriteFolders = async (req, res, next) => {
   if (favoritedFolders.result.nModified > 0) return;
 };
 
-exports.unfavoriteFolders = async (req, res, next) => {
+export const unfavoriteFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Folders represent an array of folders that will be unfavorited
-  const folders = generateFolderArray(req);
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
 
   // Unfavorites the selected folder
-  const unfavoritedFolders = await updateFolders(
+  const unfavoritedFolders: any = await updateFolders(
     { _id: { $in: folders } },
     { $set: { isFavorited: false } }
   );
@@ -296,13 +367,17 @@ exports.unfavoriteFolders = async (req, res, next) => {
   if (unfavoritedFolders.result.nModified > 0) return;
 };
 
-exports.undoFavoriteFolders = async (req, res, next) => {
+export const undoFavoriteFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
   // Folders represent an array of folders that will be unfavorited
-  const folders = generateFolderArray(req);
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length === 0) return;
 
   // Unfavorites the selected folder
-  const unfavoritedFolders = await updateFolders(
+  const unfavoritedFolders: any = await updateFolders(
     { _id: { $in: folders } },
     { $set: { isFavorited: false } }
   );
@@ -311,8 +386,12 @@ exports.undoFavoriteFolders = async (req, res, next) => {
   if (unfavoritedFolders.result.nModified > 0) return;
 };
 
-exports.moveFolders = async (req, res, next) => {
-  const folders = generateFolderArray(req);
+export const moveFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<any> => {
+  const folders: (string | ObjectID)[] = generateFolderArray(req);
   if (folders.length > 0) {
     await updateFolders(
       {
@@ -328,7 +407,11 @@ exports.moveFolders = async (req, res, next) => {
   }
 };
 
-exports.homeUnfavoriteFolders = async (req, res, next) => {
+export const homeUnfavoriteFolders = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Folders represent an array of folders that will be unfavorited
   const folders = generateFolderArray(req);
   if (folders.length === 0) return;

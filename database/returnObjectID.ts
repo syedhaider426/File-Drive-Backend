@@ -1,13 +1,13 @@
-const mongodb = require("mongodb");
+import { ObjectID } from "mongodb";
 
 /**
  * Wrapper function for converting objectID into Mongo's ObjectID type
  *
  * @param {string} - objectID is converted into Mongo's ObjectID type
  */
-createObjectID = (objectID) => {
+const createObjectID = (objectID: string | ObjectID): string | ObjectID => {
   if (objectID === undefined || objectID === "") return "";
-  return new mongodb.ObjectID(objectID);
+  return new ObjectID(objectID);
 };
 
-module.exports = createObjectID;
+export default createObjectID;

@@ -1,27 +1,38 @@
-const Connection = require("../database/Connection");
-const returnObjectID = require("../database/returnObjectID");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const Joi = require("@hapi/joi");
-const keys = require("../config/keys");
-const sgMail = require("@sendgrid/mail");
-sgMail.setApiKey(keys.sendgrid_api_key);
+// const Connection = require("../database/Connection");
+import returnObjectID from "../database/returnObjectID";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import Joi, { ObjectSchema, ValidationResult } from "@hapi/joi";
+import { keys } from "../config/keys";
+import sgMail from "@sendgrid/mail";
+import Connection from "../database/Connection";
+import { Request, Response, NextFunction } from "express";
+import { Collection } from "mongodb";
 
-exports.getUserByEmail = async (email) => {
-  return await Connection.db
+interface IUser extends Request {
+  user: { _id: string };
+}
+
+export const getUserByEmail = async (email: string) => {
+  const result = await Connection.db
     .collection("users")
-    .findOne({ email: email }, { _id: 1 });
+    .findOne({ email: email });
+  return result;
 };
 
-exports.getUserById = async (id) => {
+export const getUserById = async (id: string) => {
   return await Connection.db
     .collection("users")
-    .findOne({ _id: returnObjectID(id) }, { _id: 1 });
+    .findOne({ _id: returnObjectID(id) });
 };
 
-exports.resetPassword = async (req, res, next) => {
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   // Create JOI Schema
-  const schema = Joi.object({
+  const schema: ObjectSchema<any> = Joi.object({
     currentPassword: Joi.string().required().messages({
       "string.empty": `Password cannot be empty.`,
     }),
@@ -34,7 +45,7 @@ exports.resetPassword = async (req, res, next) => {
   });
 
   // Validate user inputs
-  const validation = await schema.validate(
+  const validation: ValidationResult = await schema.validate(
     {
       currentPassword: req.body.currentPassword,
       newPassword: req.body.newPassword,
@@ -52,12 +63,14 @@ exports.resetPassword = async (req, res, next) => {
     });
 
   try {
-    const users = Connection.db.collection("users");
+    const users: Collection<any> = Connection.db.collection("users");
     // Finds current user's password
-    const user = await users.findOne({ _id: req.user._id }, { password: 1 });
+    const user: { [key: string]: any; password: "" } = await users.findOne({
+      _id: (req as IUser).user._id,
+    });
 
     // Compare hash against current user's password
-    const passwordVerified = await bcrypt.compare(
+    const passwordVerified: boolean = await bcrypt.compare(
       req.body.currentPassword,
       user.password
     );
@@ -70,18 +83,8 @@ exports.resetPassword = async (req, res, next) => {
       });
 
     // Hash the new password
-    const hash = await bcrypt.hash(req.body.newPassword, 10);
-
-    const changedPasswordResult = await users.updateOne(
-      { _id: user._id },
-      { $set: { password: hash } }
-    );
-    if (changedPasswordResult)
-      return res.status(200).json({
-        success: {
-          message: "Password has been successfully changed. Please sign out.",
-        },
-      });
+    const hash: string = await bcrypt.hash(req.body.newPassword, 10);
+    await users.updateOne({ _id: user._id }, { $set: { password: hash } });
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -93,11 +96,20 @@ exports.resetPassword = async (req, res, next) => {
       });
     else next(err);
   }
+  return res.status(200).json({
+    success: {
+      message: "Password has been successfully changed. Please sign out.",
+    },
+  });
 };
 
-exports.forgotPassword = async (req, res, next) => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   //Create JOI schema
-  const schema = Joi.object({
+  const schema: ObjectSchema<any> = Joi.object({
     email: Joi.string().email().required().messages({
       "string.empty": `Email cannot be empty.`,
       "string.email": `Please provide a proper email address.`,
@@ -105,7 +117,9 @@ exports.forgotPassword = async (req, res, next) => {
   });
 
   // Validate user inputs
-  const validation = await schema.validate({ email: req.body.email });
+  const validation: ValidationResult = await schema.validate({
+    email: req.body.email,
+  });
 
   // Return error if any inputs do not satisfy the schema
   if (validation.error)
@@ -117,20 +131,25 @@ exports.forgotPassword = async (req, res, next) => {
 
   try {
     // Gets user's id
-    const user = await Connection.db
+    const user: { [key: string]: any } = await Connection.db
       .collection("users")
-      .findOne({ email: req.body.email }, { _id: 1 });
+      .findOne({ email: req.body.email });
 
     // Stores id in token
-    const token = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
+    const token: string = await jwt.sign({ id: user._id }, keys.jwtPrivateKey, {
       expiresIn: "1h",
     });
 
-    let url = "http://localhost:3000";
+    let url: string = "http://localhost:3000";
     if (process.env.NODE_ENV === "production") url = "https://file-drive.xyz";
 
     // Set mail content for SendGrid to send
-    let mailOptions = {
+    let mailOptions: {
+      from: string;
+      to: string;
+      subject: string;
+      text: string;
+    } = {
       from: keys.email,
       to: req.body.email,
       subject: "Forgotten Password - F-Drive",
@@ -141,16 +160,9 @@ exports.forgotPassword = async (req, res, next) => {
         token +
         "\n",
     };
-
+    sgMail.setApiKey(keys.sendgrid_api_key);
     // Send email via SendGrid
     await sgMail.send(mailOptions);
-
-    // Return success status back to client
-    return res.status(200).json({
-      success: {
-        message: "Please check your email to reset your password.",
-      },
-    });
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -162,11 +174,22 @@ exports.forgotPassword = async (req, res, next) => {
       });
     else next(err);
   }
+
+  // Return success status back to client
+  return res.status(200).json({
+    success: {
+      message: "Please check your email to reset your password.",
+    },
+  });
 };
 
-exports.newPassword = async (req, res, next) => {
+export const newPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   //Create JOI schema
-  const schema = Joi.object({
+  const schema: Joi.ObjectSchema<any> = Joi.object({
     password: Joi.string().required().messages({
       "string.empty": `Password cannot be empty.`,
     }),
@@ -175,7 +198,7 @@ exports.newPassword = async (req, res, next) => {
     }),
   });
   // Validate user inputs
-  const validation = await schema.validate({
+  const validation: Joi.ValidationResult = await schema.validate({
     password: req.body.password,
     repeat_password: req.body.confirmPassword,
   });
@@ -189,7 +212,10 @@ exports.newPassword = async (req, res, next) => {
     });
 
   try {
-    const user = await jwt.verify(req.body.token, keys.jwtPrivateKey);
+    const user = (await jwt.verify(req.body.token, keys.jwtPrivateKey)) as {
+      [key: string]: any;
+      id: string;
+    };
     // Throw error if token expired or is invalid
     if (!user)
       return res.status(400).json({
@@ -200,16 +226,10 @@ exports.newPassword = async (req, res, next) => {
       });
 
     // Hash the new password entered
-    const hash = await bcrypt.hash(req.body.password, 10);
-    const changedPasswordResult = await Connection.db
+    const hash: string = await bcrypt.hash(req.body.password, 10);
+    await Connection.db
       .collection("users")
       .updateOne({ _id: user.id }, { $set: { password: hash } });
-    if (changedPasswordResult)
-      return res.status(200).json({
-        success: {
-          message: "Password has been successfully changed. Please log in.",
-        },
-      });
   } catch (err) {
     // If there is an error with Mongo, throw an error
     if (err.name === "MongoError")
@@ -221,4 +241,9 @@ exports.newPassword = async (req, res, next) => {
       });
     else next(err);
   }
+  return res.status(200).json({
+    success: {
+      message: "Password has been successfully changed. Please log in.",
+    },
+  });
 };
