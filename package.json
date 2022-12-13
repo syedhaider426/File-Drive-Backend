@@ -21,7 +21,7 @@
     "@hapi/joi": "^17.1.1",
     "@sendgrid/mail": "^7.4.4",
     "bcryptjs": "^2.4.3",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-session": "^1.17.2",
     "formidable": "^1.2.2",
     "helmet": "^4.6.0",
